@@ -91,7 +91,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: |
-          /mnt/openwrt-build/openwrt/staging_dir
+          /mnt/openwrt-build/openwrt
         key: ${{ matrix.repo_info.branch }}-toolchain-cache
         restore-keys: |
           ${{ matrix.repo_info.branch }}-toolchain-cache
