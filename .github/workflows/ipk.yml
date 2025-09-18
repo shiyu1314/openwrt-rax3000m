@@ -89,9 +89,8 @@ jobs:
         
     - name: 取回缓存 staging_dir
       uses: actions/cache@v4
+      working-directory: /mnt/openwrt-build/openwrt
       with:
-        path: |
-          /mnt/openwrt-build/openwrt
         key: ${{ matrix.repo_info.branch }}-toolchain-cache
         restore-keys: |
           ${{ matrix.repo_info.branch }}-toolchain-cache
