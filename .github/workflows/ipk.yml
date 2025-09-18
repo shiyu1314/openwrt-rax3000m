@@ -4,7 +4,6 @@ on:
   repository_dispatch:
   workflow_dispatch:
 
-
 env:
   DIY_P1_SH: sh/op.sh
 
@@ -16,7 +15,6 @@ jobs:
       matrix:
         repo_info:
           - {branch: "openwrt-24.10"}
-
 
     steps: 
     - name: 检查分支
@@ -36,6 +34,9 @@ jobs:
         sudo rm -rf /etc/mysql /etc/php /usr/lib/jvm /usr/libexec/docker /usr/local /usr/src/* /var/lib/docker /var/lib/gems /var/lib/mysql /var/lib/snapd /etc/skel /opt/{microsoft,az,hostedtoolcache,cni,mssql-tools,pipx} /usr/share/{az*,dotnet,swift,miniconda,gradle*,java,kotlinc,ri,sbt} /root/{.sbt,.local,.npm}
         sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
         rm -rf ~/{.cargo,.dotnet,.rustup}
+        # 添加清理runner工作目录
+        sudo rm -rf /home/runner/_work/*
+        sudo rm -rf /home/runner/.cache/*
         df -Th
 
     - name: 编译环境
@@ -57,16 +58,24 @@ jobs:
         echo "tag=$TAG" >> $GITHUB_ENV
         echo "REPO_URL=https://github.com/openwrt/openwrt" >> $GITHUB_ENV
         echo "REPO_BRANCH=${{ matrix.repo_info.branch }}" >> $GITHUB_ENV
+        # 添加工作目录变量
+        echo "WORK_DIR=/mnt/openwrt-build" >> $GITHUB_ENV
+
+    - name: 创建编译目录
+      run: |
+        sudo mkdir -p $WORK_DIR
+        sudo chown $USER:$GROUPS $WORK_DIR
+        ln -sf $WORK_DIR /workdir/openwrt-build
 
     - name: 克隆源代码
-      working-directory: /workdir
+      working-directory: $WORK_DIR
       run: |
         df -hT $PWD
         git clone $REPO_URL openwrt
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        ln -sf $WORK_DIR/openwrt $GITHUB_WORKSPACE/openwrt
         
     - name: 切换分支
-      working-directory: ./openwrt
+      working-directory: $WORK_DIR/openwrt
       id: var
       run: |
         case $REPO_BRANCH in
@@ -90,7 +99,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: |
-          openwrt/staging_dir
+          $WORK_DIR/openwrt/staging_dir
         key: ${{ matrix.repo_info.branch }}-toolchain-cache
         restore-keys: |
           ${{ matrix.repo_info.branch }}-toolchain-cache
@@ -98,38 +107,38 @@ jobs:
     - name: patch修补
       run: |
         set -x
-        [ -e patch ] && cp -rf patch/automount openwrt/package
-        [ -e patch ] && cp -rf patch/autocore-arm openwrt/package
-        [ -e patch ] && cp -rf patch/kernel-6.6/modules/netsupport.mk openwrt/package/kernel/linux/modules
-        [ -e patch ] && cp -rf patch/kernel-6.6/bbr3/*.patch openwrt
-        [ -e patch ] && cp -rf patch/perf/Makefile openwrt/package/devel/perf
-        [ -e patch ] && cp -rf patch/musl/990-add-typedefs-for-Elf64_Relr-and-Elf32_Relr.patch openwrt/toolchain/musl/patches
-        cd openwrt
+        [ -e patch ] && cp -rf patch/automount $WORK_DIR/openwrt/package
+        [ -e patch ] && cp -rf patch/autocore-arm $WORK_DIR/openwrt/package
+        [ -e patch ] && cp -rf patch/kernel-6.6/modules/netsupport.mk $WORK_DIR/openwrt/package/kernel/linux/modules
+        [ -e patch ] && cp -rf patch/kernel-6.6/bbr3/*.patch $WORK_DIR/openwrt
+        [ -e patch ] && cp -rf patch/perf/Makefile $WORK_DIR/openwrt/package/devel/perf
+        [ -e patch ] && cp -rf patch/musl/990-add-typedefs-for-Elf64_Relr-and-Elf32_Relr.patch $WORK_DIR/openwrt/toolchain/musl/patches
+        cd $WORK_DIR/openwrt
         find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
         ./scripts/feeds update -a
         cd .. 
-        [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch openwrt
-        [ -e patch ] && cp -rf patch/firewall4/luci-24.10/*.patch openwrt/feeds/luci 
-        [ -e patch ] && cp -rf patch/luci/*.patch openwrt/feeds/luci 
-        [ -e patch ] && cp -rf patch/openssl/quic/*.patch openwrt/package/libs/openssl/patches
-        mkdir -p openwrt/package/network/services/odhcpd/patches
-        [ -e patch ] && cp -rf patch/odhcpd/*.patch openwrt/package/network/services/odhcpd/patches
+        [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch $WORK_DIR/openwrt
+        [ -e patch ] && cp -rf patch/firewall4/luci-24.10/*.patch $WORK_DIR/openwrt/feeds/luci 
+        [ -e patch ] && cp -rf patch/luci/*.patch $WORK_DIR/openwrt/feeds/luci 
+        [ -e patch ] && cp -rf patch/openssl/quic/*.patch $WORK_DIR/openwrt/package/libs/openssl/patches
+        mkdir -p $WORK_DIR/openwrt/package/network/services/odhcpd/patches
+        [ -e patch ] && cp -rf patch/odhcpd/*.patch $WORK_DIR/openwrt/package/network/services/odhcpd/patches
         
     - name: 加载自定义脚本
       run: |
         chmod +x $DIY_P1_SH
-        cd openwrt
+        cd $WORK_DIR/openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
         cd ..
-        [ -e patch ] && cp -rf patch/nginx/luci.locations openwrt/feeds/packages/net/nginx/files-luci-support
-        [ -e patch ] && cp -rf patch/nginx/openwrt-24.10-uci.conf.template openwrt/feeds/packages/net/nginx-util/files
-        [ -e patch ] && cp -rf patch/turboacc openwrt/package/turboacc/luci-app-turboacc/root/etc/config
-        [ -e patch ] && cp -rf patch/target openwrt
+        [ -e patch ] && cp -rf patch/nginx/luci.locations $WORK_DIR/openwrt/feeds/packages/net/nginx/files-luci-support
+        [ -e patch ] && cp -rf patch/nginx/openwrt-24.10-uci.conf.template $WORK_DIR/openwrt/feeds/packages/net/nginx-util/files
+        [ -e patch ] && cp -rf patch/turboacc $WORK_DIR/openwrt/package/turboacc/luci-app-turboacc/root/etc/config
+        [ -e patch ] && cp -rf patch/target $WORK_DIR/openwrt
        
     - name: 加载自定义配置
       run: |
-        [ -e files ] && mv files openwrt/files
-        cat <<EOF >>openwrt/.config
+        [ -e files ] && mv files $WORK_DIR/openwrt/files
+        cat <<EOF >>$WORK_DIR/openwrt/.config
         CONFIG_TARGET_mediatek=y
         CONFIG_TARGET_mediatek_filogic=y
         CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y
@@ -239,7 +248,7 @@ jobs:
         CONFIG_BUSYBOX_CUSTOM=m
         CONFIG_BUSYBOX_CONFIG_ASH_HELP=m
         CONFIG_BUSYBOX_CONFIG_FEATURE_EDITING_HISTORY=1024
-        CONFIG_BUSYBOX_CONFIG_FEATURE_EDITING_SAVEHISTORY=m
+        CONFIG_BUSYBOX_CONFIG_FEATURE_EDITing_SAVEHISTORY=m
         CONFIG_BUSYBOX_CONFIG_FEATURE_PREFER_IPV4_ADDRESS=m
         CONFIG_BUSYBOX_CONFIG_FEATURE_SH_HISTFILESIZE=m
         CONFIG_BUSYBOX_CONFIG_FEATURE_SYSLOG_INFO=m
@@ -327,13 +336,12 @@ jobs:
         CONFIG_PACKAGE_luci-app-dae=y
         EOF
         
-        sed -i "s/192.168.1.1/192.168.2.1/" openwrt/package/base-files/files/bin/config_generate
-         
+        sed -i "s/192.168.1.1/192.168.2.1/" $WORK_DIR/openwrt/package/base-files/files/bin/config_generate
     
     - name: 下载编译依赖
       id: package
       run: |
-        cd openwrt
+        cd $WORK_DIR/openwrt
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
@@ -342,7 +350,7 @@ jobs:
     - name: 编译源码
       id: compile
       run: |
-        cd openwrt
+        cd $WORK_DIR/openwrt
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
 
@@ -353,11 +361,11 @@ jobs:
     - name: 整理文件
       id: organize
       run: |
-        mkdir -p openwrt/bin/packages/aarch64_cortex-a53/kmod
-        cp -rf openwrt/bin/targets/*/*/*/* openwrt/bin/packages/aarch64_cortex-a53/kmod
-        rm -rf openwrt/bin/packages/*/routing
-        rm -rf openwrt/bin/packages/*/telephony
-        cd openwrt/bin/targets/*/*
+        mkdir -p $WORK_DIR/openwrt/bin/packages/aarch64_cortex-a53/kmod
+        cp -rf $WORK_DIR/openwrt/bin/targets/*/*/*/* $WORK_DIR/openwrt/bin/packages/aarch64_cortex-a53/kmod
+        rm -rf $WORK_DIR/openwrt/bin/packages/*/routing
+        rm -rf $WORK_DIR/openwrt/bin/packages/*/telephony
+        cd $WORK_DIR/openwrt/bin/targets/*/*
         rm -rf packages
         rm -rf *.buildinfo
         rm -rf profiles.json
@@ -367,12 +375,11 @@ jobs:
         rm -rf sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
-
     - name: 上传ipk
       env:
         GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       run: |
-        cd openwrt/bin/packages
+        cd $WORK_DIR/openwrt/bin/packages
         git init
         git config --local user.name "github-actions[bot]"
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -380,4 +387,4 @@ jobs:
         git commit -m "${{ env.tag }}"
         git branch -M main
         git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/rax3000m
-        git push -u origin main --force   
+        git push -u origin main --force
