@@ -4,6 +4,7 @@ on:
   repository_dispatch:
   workflow_dispatch:
 
+
 env:
   DIY_P1_SH: sh/op.sh
 
@@ -16,28 +17,26 @@ jobs:
         repo_info:
           - {branch: "openwrt-24.10"}
 
+
     steps: 
     - name: 检查分支
       uses: actions/checkout@v4
 
-    - name: 释放磁盘空间
-      run: |
-        sudo rm -rf /etc/apt/sources.list.d
-        sudo swapoff -a
-        sudo rm -f /swapfile /mnt/swapfile
-        sudo docker image prune -a -f
-        sudo systemctl stop docker
-        sudo snap set system refresh.retain=2
-        sudo apt-get -y purge firefox clang* ghc* google* llvm* mono* mongo* mysql* php*
-        sudo apt-get -y autoremove --purge
-        sudo apt-get clean
-        sudo rm -rf /etc/mysql /etc/php /usr/lib/jvm /usr/libexec/docker /usr/local /usr/src/* /var/lib/docker /var/lib/gems /var/lib/mysql /var/lib/snapd /etc/skel /opt/{microsoft,az,hostedtoolcache,cni,mssql-tools,pipx} /usr/share/{az*,dotnet,swift,miniconda,gradle*,java,kotlinc,ri,sbt} /root/{.sbt,.local,.npm}
-        sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
-        rm -rf ~/{.cargo,.dotnet,.rustup}
-        # 添加清理runner工作目录
-        sudo rm -rf /home/runner/_work/*
-        sudo rm -rf /home/runner/.cache/*
-        df -Th
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: true
+        
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: true
 
     - name: 编译环境
       env:
@@ -48,8 +47,8 @@ jobs:
         sudo apt-get clean
         git config --global user.name 'GitHub Actions' && git config --global user.email 'noreply@github.com'
         sudo timedatectl set-timezone 'Asia/Shanghai'
-        sudo mkdir -p /mnt/openwrt-build
-        sudo chown $USER:$GROUPS /mnt/openwrt-build
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
         df -Th
 
     - name: 设置环境变量
@@ -60,14 +59,14 @@ jobs:
         echo "REPO_BRANCH=${{ matrix.repo_info.branch }}" >> $GITHUB_ENV
 
     - name: 克隆源代码
-      working-directory: /mnt/openwrt-build
+      working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL openwrt
-        ln -sf /mnt/openwrt-build/openwrt $GITHUB_WORKSPACE/openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
         
     - name: 切换分支
-      working-directory: /mnt/openwrt-build/openwrt
+      working-directory: ./openwrt
       id: var
       run: |
         case $REPO_BRANCH in
@@ -86,41 +85,51 @@ jobs:
             ;;
         esac
         echo "release_tag=$_release_tag" >> $GITHUB_ENV
+        
+    - name: 取回缓存 staging_dir
+      uses: actions/cache@v4
+      with:
+        path: |
+          openwrt/staging_dir
+        key: ${{ matrix.repo_info.branch }}-toolchain-cache
+        restore-keys: |
+          ${{ matrix.repo_info.branch }}-toolchain-cache
             
     - name: patch修补
       run: |
         set -x
-        [ -e patch ] && cp -rf patch/automount /mnt/openwrt-build/openwrt/package
-        [ -e patch ] && cp -rf patch/autocore-arm /mnt/openwrt-build/openwrt/package
-        [ -e patch ] && cp -rf patch/kernel-6.6/modules/netsupport.mk /mnt/openwrt-build/openwrt/package/kernel/linux/modules
-        [ -e patch ] && cp -rf patch/kernel-6.6/bbr3/*.patch /mnt/openwrt-build/openwrt
-        [ -e patch ] && cp -rf patch/perf/Makefile /mnt/openwrt-build/openwrt/package/devel/perf
-        [ -e patch ] && cp -rf patch/musl/990-add-typedefs-for-Elf64_Relr-and-Elf32_Relr.patch /mnt/openwrt-build/openwrt/toolchain/musl/patches
-        cd /mnt/openwrt-build/openwrt
+        [ -e patch ] && cp -rf patch/automount openwrt/package
+        [ -e patch ] && cp -rf patch/autocore-arm openwrt/package
+        [ -e patch ] && cp -rf patch/kernel-6.6/modules/netsupport.mk openwrt/package/kernel/linux/modules
+        [ -e patch ] && cp -rf patch/kernel-6.6/bbr3/*.patch openwrt
+        [ -e patch ] && cp -rf patch/perf/Makefile openwrt/package/devel/perf
+        [ -e patch ] && cp -rf patch/musl/990-add-typedefs-for-Elf64_Relr-and-Elf32_Relr.patch openwrt/toolchain/musl/patches
+        cd openwrt
+        find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
         ./scripts/feeds update -a
         cd .. 
-        [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch /mnt/openwrt-build/openwrt
-        [ -e patch ] && cp -rf patch/firewall4/luci-24.10/*.patch /mnt/openwrt-build/openwrt/feeds/luci 
-        [ -e patch ] && cp -rf patch/luci/*.patch /mnt/openwrt-build/openwrt/feeds/luci 
-        [ -e patch ] && cp -rf patch/openssl/quic/*.patch /mnt/openwrt-build/openwrt/package/libs/openssl/patches
-        mkdir -p /mnt/openwrt-build/openwrt/package/network/services/odhcpd/patches
-        [ -e patch ] && cp -rf patch/odhcpd/*.patch /mnt/openwrt-build/openwrt/package/network/services/odhcpd/patches
+        [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch openwrt
+        [ -e patch ] && cp -rf patch/firewall4/luci-24.10/*.patch openwrt/feeds/luci 
+        [ -e patch ] && cp -rf patch/luci/*.patch openwrt/feeds/luci 
+        [ -e patch ] && cp -rf patch/openssl/quic/*.patch openwrt/package/libs/openssl/patches
+        mkdir -p openwrt/package/network/services/odhcpd/patches
+        [ -e patch ] && cp -rf patch/odhcpd/*.patch openwrt/package/network/services/odhcpd/patches
         
     - name: 加载自定义脚本
       run: |
         chmod +x $DIY_P1_SH
-        cd /mnt/openwrt-build/openwrt
+        cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
         cd ..
-        [ -e patch ] && cp -rf patch/nginx/luci.locations /mnt/openwrt-build/openwrt/feeds/packages/net/nginx/files-luci-support
-        [ -e patch ] && cp -rf patch/nginx/openwrt-24.10-uci.conf.template /mnt/openwrt-build/openwrt/feeds/packages/net/nginx-util/files
-        [ -e patch ] && cp -rf patch/turboacc /mnt/openwrt-build/openwrt/package/turboacc/luci-app-turboacc/root/etc/config
-        [ -e patch ] && cp -rf patch/target /mnt/openwrt-build/openwrt
+        [ -e patch ] && cp -rf patch/nginx/luci.locations openwrt/feeds/packages/net/nginx/files-luci-support
+        [ -e patch ] && cp -rf patch/nginx/openwrt-24.10-uci.conf.template openwrt/feeds/packages/net/nginx-util/files
+        [ -e patch ] && cp -rf patch/turboacc openwrt/package/turboacc/luci-app-turboacc/root/etc/config
+        [ -e patch ] && cp -rf patch/target openwrt
        
     - name: 加载自定义配置
       run: |
-        [ -e files ] && mv files /mnt/openwrt-build/openwrt/files
-        cat <<EOF >>/mnt/openwrt-build/openwrt/.config
+        [ -e files ] && mv files openwrt/files
+        cat <<EOF >>openwrt/.config
         CONFIG_TARGET_mediatek=y
         CONFIG_TARGET_mediatek_filogic=y
         CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y
@@ -189,7 +198,7 @@ jobs:
         ### OpenSSL
         CONFIG_OPENSSL_ENGINE=m
         CONFIG_OPENSSL_OPTIMIZE_SPEED=m
-        CONFIG_OPENSSL_WWITH_ASM=m
+        CONFIG_OPENSSL_WITH_ASM=m
         CONFIG_PACKAGE_libopenssl-afalg=m
         CONFIG_PACKAGE_libopenssl-conf=m
         CONFIG_PACKAGE_libopenssl-devcrypto=m
@@ -301,13 +310,14 @@ jobs:
         CONFIG_PACKAGE_luci-app-smartdns=m
         CONFIG_PACKAGE_luci-app-socat=m
         CONFIG_PACKAGE_luci-app-tailscale=m
+        CONFIG_PACKAGE_luci-app-upnp=m
         CONFIG_PACKAGE_luci-app-usb-printer=m
         CONFIG_PACKAGE_luci-app-vlmcsd=m
         CONFIG_PACKAGE_luci-app-zerotier=m
         CONFIG_PACKAGE_luci-app-homeproxy=m
         CONFIG_PACKAGE_luci-app-nikki=m
         CONFIG_PACKAGE_luci-app-openclash=m
-        CONFIG_PACKAGE_luci-thee-material3=y
+        CONFIG_PACKAGE_luci-theme-material3=y
         CONFIG_PACKAGE_luci-app-quickstart=m
         CONFIG_PACKAGE_luci-app-argon-config=m
         CONFIG_PACKAGE_luci-theme-argon=m
@@ -318,12 +328,13 @@ jobs:
         CONFIG_PACKAGE_luci-app-dae=y
         EOF
         
-        sed -i "s/192.168.1.1/192.168.2.1/" /mnt/openwrt-build/openwrt/package/base-files/files/bin/config_generate
+        sed -i "s/192.168.1.1/192.168.2.1/" openwrt/package/base-files/files/bin/config_generate
+         
     
     - name: 下载编译依赖
       id: package
       run: |
-        cd /mnt/openwrt-build/openwrt
+        cd openwrt
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
@@ -332,7 +343,7 @@ jobs:
     - name: 编译源码
       id: compile
       run: |
-        cd /mnt/openwrt-build/openwrt
+        cd openwrt
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
 
@@ -343,11 +354,11 @@ jobs:
     - name: 整理文件
       id: organize
       run: |
-        mkdir -p /mnt/openwrt-build/openwrt/bin/packages/aarch64_cortex-a53/kmod
-        cp -rf /mnt/openwrt-build/openwrt/bin/targets/*/*/*/* /mnt/openwrt-build/openwrt/bin/packages/aarch64_cortex-a53/kmod
-        rm -rf /mnt/openwrt-build/openwrt/bin/packages/*/routing
-        rm -rf /mnt/openwrt-build/openwrt/bin/packages/*/telephony
-        cd /mnt/openwrt-build/openwrt/bin/targets/*/*
+        mkdir -p openwrt/bin/packages/aarch64_cortex-a53/kmod
+        cp -rf openwrt/bin/targets/*/*/*/* openwrt/bin/packages/aarch64_cortex-a53/kmod
+        rm -rf openwrt/bin/packages/*/routing
+        rm -rf openwrt/bin/packages/*/telephony
+        cd openwrt/bin/targets/*/*
         rm -rf packages
         rm -rf *.buildinfo
         rm -rf profiles.json
@@ -357,11 +368,12 @@ jobs:
         rm -rf sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
+
     - name: 上传ipk
       env:
         GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       run: |
-        cd /mnt/openwrt-build/openwrt/bin/packages
+        cd openwrt/bin/packages
         git init
         git config --local user.name "github-actions[bot]"
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -369,4 +381,4 @@ jobs:
         git commit -m "${{ env.tag }}"
         git branch -M main
         git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/rax3000m
-        git push -u origin main --force
+        git push -u origin main --force   
