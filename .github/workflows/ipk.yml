@@ -97,7 +97,6 @@ jobs:
         [ -e patch ] && cp -rf patch/perf/Makefile /mnt/openwrt-build/openwrt/package/devel/perf
         [ -e patch ] && cp -rf patch/musl/990-add-typedefs-for-Elf64_Relr-and-Elf32_Relr.patch /mnt/openwrt-build/openwrt/toolchain/musl/patches
         cd /mnt/openwrt-build/openwrt
-        find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
         ./scripts/feeds update -a
         cd .. 
         [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch /mnt/openwrt-build/openwrt
