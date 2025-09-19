@@ -310,7 +310,6 @@ jobs:
         CONFIG_PACKAGE_luci-app-smartdns=m
         CONFIG_PACKAGE_luci-app-socat=m
         CONFIG_PACKAGE_luci-app-tailscale=m
-        CONFIG_PACKAGE_luci-app-upnp=m
         CONFIG_PACKAGE_luci-app-usb-printer=m
         CONFIG_PACKAGE_luci-app-vlmcsd=m
         CONFIG_PACKAGE_luci-app-zerotier=m
