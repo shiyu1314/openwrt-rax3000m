@@ -324,7 +324,6 @@ jobs:
         CONFIG_PACKAGE_luci-app-verysync=m
         CONFIG_PACKAGE_luci-app-syncthing=m
         CONFIG_PACKAGE_luci-app-eqosplus=m
-        CONFIG_PACKAGE_luci-app-dae=y
         EOF
         
         sed -i "s/192.168.1.1/192.168.2.1/" openwrt/package/base-files/files/bin/config_generate
