@@ -133,14 +133,6 @@ jobs:
         CONFIG_TARGET_mediatek=y
         CONFIG_TARGET_mediatek_filogic=y
         CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y
-        CONFIG_KERNEL_DEBUG_INFO=y
-        CONFIG_KERNEL_DEBUG_INFO_REDUCED=n
-        CONFIG_KERNEL_DEBUG_INFO_BTF=y
-        CONFIG_KERNEL_CGROUPS=y
-        CONFIG_KERNEL_CGROUP_BPF=y
-        CONFIG_KERNEL_BPF_EVENTS=y
-        CONFIG_BPF_TOOLCHAIN_HOST=y
-        CONFIG_KERNEL_XDP_SOCKETS=y
         CONFIG_PACKAGE_dnsmasq-full=m
         CONFIG_PACKAGE_dnsmasq_full_ipset=m
         # CONFIG_PACKAGE_dnsmasq_full_broken_rtc is not set
