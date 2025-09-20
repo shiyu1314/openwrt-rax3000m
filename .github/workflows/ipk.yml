@@ -476,17 +476,10 @@ jobs:
         CONFIG_PACKAGE_luci-app-momo=m
         CONFIG_PACKAGE_luci-app-openlist2=m
         CONFIG_PACKAGE_luci-app-samba4=m
-        CONFIG_PACKAGE_luci-app-smartdns=m
-        
-        CONFIG_PACKAGE_luci-app-zerotier=m
-        CONFIG_PACKAGE_luci-app-homeproxy=m
         CONFIG_PACKAGE_luci-app-nikki=m
-        CONFIG_PACKAGE_luci-app-openclash=m
         CONFIG_PACKAGE_luci-theme-material3=y
         CONFIG_PACKAGE_luci-app-quickstart=m
         CONFIG_PACKAGE_luci-app-istorex=m
-        CONFIG_PACKAGE_luci-app-verysync=m
-        CONFIG_PACKAGE_luci-app-syncthing=m
         EOF
         
         sed -i "s/192.168.6.1/192.168.2.1/" openwrt/package/base-files/files/bin/config_generate
