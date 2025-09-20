@@ -162,3 +162,6 @@ msgstr "强制将所有本地 DNS 查询重定向到 DNSMasq，即 DNS 劫持。
 
 msgid "RUNNING"
 msgstr "运行中"
+
+msgid "Enables The 802.11k standard provides information to discover the best available access point"
+msgstr "802.11k标准通过协助设备进行漫游决策，从而发现并连接至最佳可用接入点。"
