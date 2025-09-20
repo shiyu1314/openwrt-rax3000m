@@ -1,0 +1,29 @@
+From 965479797b2b652488b9745cd9590424acb0be93 Mon Sep 17 00:00:00 2001
+From: Konstantin Demin <rockdrilla@gmail.com>
+Date: Sun, 10 Sep 2023 21:39:24 +0300
+Subject: [PATCH 15/23] iproute2: build quirk
+
+---
+ package/network/utils/iproute2/patches/999-quirk.patch | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+ create mode 100644 package/network/utils/iproute2/patches/999-quirk.patch
+
+diff --git a/package/network/utils/iproute2/patches/999-quirk.patch b/package/network/utils/iproute2/patches/999-quirk.patch
+new file mode 100644
+index 0000000000..2d3a41ef86
+--- /dev/null
++++ b/package/network/utils/iproute2/patches/999-quirk.patch
+@@ -0,0 +1,10 @@
++--- a/bridge/mdb.c
+++++ b/bridge/mdb.c
++@@ -21,6 +21,7 @@
++ #include "br_common.h"
++ #include "rt_names.h"
++ #include "json_print.h"
+++#include <limits.h>
++ 
++ #ifndef MDBA_RTA
++ #define MDBA_RTA(r) \
+-- 
+2.34.1
+
