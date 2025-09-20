@@ -53,7 +53,6 @@ jobs:
     - name: patch修补
       run: |
         set -x
-        [ -e patch ] && cp -rf patch/target openwrt
         [ -e patch ] && cp -rf patch/diy/turboacc openwrt/package/mtk/applications/luci-app-turboacc-mtk/root/etc/config
         rm -rf openwrt/package/mtk/applications/luci-app-mtwifi-cfg
         [ -e patch ] && cp -rf patch/luci-app-mtwifi-cfg openwrt/package/mtk/applications
