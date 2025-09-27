@@ -319,6 +319,9 @@ jobs:
         CONFIG_PACKAGE_kmod-lib-lz4=y
         CONFIG_PACKAGE_kmod-lib-lzo=y
         CONFIG_PACKAGE_kmod-lib-zstd=y
+        ### sfe
+        CONFIG_PACKAGE_kmod-fast-classifier=y
+        CONFIG_PACKAGE_kmod-shortcut-fe-cm=y
         EOF
         
         sed -i "s/192.168.1.1/${{ github.event.inputs.OP_IP }}/" $SOURCE_NAME/package/base-files/files/bin/config_generate
