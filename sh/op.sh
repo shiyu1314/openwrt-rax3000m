@@ -1,5 +1,17 @@
 #!/bin/bash
 
+function git_sparse_clone() {
+  branch="$1" repourl="$2" && shift 2
+  git clone --depth=1 -b $branch --single-branch --filter=blob:none --sparse $repourl
+  repodir=$(echo $repourl | awk -F '/' '{print $(NF)}')
+  cd $repodir && git sparse-checkout set $@
+  mv -f $@ ../
+  cd .. && rm -rf $repodir
+}
+
+
+git_sparse_clone master https://github.com/openwrt/packages lang/rust
+
 if [ "$SOURCE_NAME" = "openwrt" ]; then
  patch -p1 --no-backup-if-mismatch < 0006-target-prefer-openssl.patch
  patch -p1 --no-backup-if-mismatch < 08-cmcc_rax3000m.patch
@@ -34,7 +46,10 @@ git clone -b porxy --depth 1 --single-branch https://github.com/shiyu1314/openwr
 rm -rf feeds/luci/applications/{luci-app-dockerman,luci-app-samba4,luci-app-aria2}
 rm -rf feeds/packages/{net/samba4,v2ray-geodata,mosdns,sing-box,aria2,ariang,adguardhome}
 
-sed -i 's/--set=llvm\.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
+rm -rf feeds/packages/lang/rust
+cp -rf rust feeds/packages
+
+##sed -i 's/--set=llvm\.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
 
 curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
 
