@@ -1,7 +1,6 @@
 #!/bin/bash
 
 
-
 if [ "$SOURCE_NAME" = "openwrt" ]; then
  patch -p1 --no-backup-if-mismatch < 0006-target-prefer-openssl.patch
  patch -p1 --no-backup-if-mismatch < 08-cmcc_rax3000m.patch
@@ -39,7 +38,7 @@ rm -rf feeds/packages/{net/samba4,v2ray-geodata,mosdns,sing-box,aria2,ariang,adg
 
 sed -i 's/--set=llvm\.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
 
-curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
+curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh --no-sfe
 
 sed -i "s/kmod-tcp-bbr/kmod-tcp-bbr3/" package/turboacc/luci-app-turboacc/Makefile
 
