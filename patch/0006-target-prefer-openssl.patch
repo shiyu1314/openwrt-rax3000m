@@ -1,0 +1,39 @@
+From aa7a238c2cb4cd037c3a4d16e41db15986a5d897 Mon Sep 17 00:00:00 2001
+From: lunatickochiya <125438787@qq.com>
+Date: Sun, 26 Jan 2025 18:08:47 +0800
+Subject: [PATCH 6/7] target:prefer openssl and mesh
+
+---
+ include/target.mk                       | 2 +-
+ target/linux/mediatek/filogic/target.mk | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/target.mk b/include/target.mk
+index 02ea68b15c..9b10db8d2f 100644
+--- a/include/target.mk
++++ b/include/target.mk
+@@ -25,7 +25,7 @@ DEFAULT_PACKAGES:=\
+ 	fstools \
+ 	libc \
+ 	libgcc \
+-	libustream-mbedtls \
++	libustream-openssl \
+ 	logd \
+ 	mtd \
+ 	netifd \
+diff --git a/target/linux/mediatek/filogic/target.mk b/target/linux/mediatek/filogic/target.mk
+index d1637e06af..f55785cb11 100644
+--- a/target/linux/mediatek/filogic/target.mk
++++ b/target/linux/mediatek/filogic/target.mk
+@@ -2,7 +2,7 @@ ARCH:=aarch64
+ SUBTARGET:=filogic
+ BOARDNAME:=Filogic 8x0 (MT798x)
+ CPU_TYPE:=cortex-a53
+-DEFAULT_PACKAGES += fitblk kmod-phy-aquantia kmod-crypto-hw-safexcel wpad-basic-mbedtls uboot-envtools
++DEFAULT_PACKAGES += fitblk kmod-phy-aquantia kmod-crypto-hw-safexcel wpad-openssl uboot-envtools bridger
+ KERNELNAME:=Image dtbs
+ 
+ define Target/Description
+-- 
+2.34.1
+
