@@ -188,7 +188,6 @@ jobs:
         CONFIG_TARGET_mediatek=y
         CONFIG_TARGET_mediatek_filogic=y
         ${{ matrix.config }}
-        CONFIG_KERNEL_PREEMPT_RT=y
         CONFIG_PACKAGE_dnsmasq-full=y
         CONFIG_PACKAGE_dnsmasq_full_ipset=y
         # CONFIG_PACKAGE_dnsmasq_full_broken_rtc is not set
