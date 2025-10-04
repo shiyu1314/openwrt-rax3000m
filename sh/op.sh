@@ -12,7 +12,9 @@ function git_sparse_clone() {
 
 git_sparse_clone main https://github.com/openwrt/openwrt package/kernel/gpio-button-hotplug
 git_sparse_clone main https://github.com/openwrt/openwrt package/kernel/mac80211
-git_sparse_clone main https://github.com/openwrt/openwrt package/kernel/mt76
+##git_sparse_clone main https://github.com/openwrt/openwrt package/kernel/mt76
+git_sparse_clone master https://github.com/x-wrt/x-wrt package/kernel/mt76
+
 
 rm -rf package/kernel/{gpio-button-hotplug,mac80211,mt76}
 
