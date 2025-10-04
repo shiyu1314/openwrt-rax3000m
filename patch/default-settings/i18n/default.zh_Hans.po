@@ -1,0 +1,167 @@
+msgid "CPU usage"
+msgstr "CPU 使用率"
+
+msgid "Confirm Reboot"
+msgstr "确认重启"
+
+msgid "Are you sure you want to reboot the system?"
+msgstr "你确认要重启系统？"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Login"
+msgstr "登录"
+
+msgid "Logout"
+msgstr "退出"
+
+msgid "Basic Settings"
+msgstr "基本设置"
+
+msgid "Log"
+msgstr "日志"
+
+msgid "NAS"
+msgstr "网络存储"
+
+msgid "Ethernet Information"
+msgstr "网口信息"
+
+msgid "Ethernet Name"
+msgstr "网口名"
+
+msgid "Link Status"
+msgstr "连接状态"
+
+msgid "Speed"
+msgstr "速率"
+
+msgid "Duplex"
+msgstr "双工模式"
+
+msgid "Link Up"
+msgstr "已连接"
+
+msgid "Link Down"
+msgstr "已断开"
+
+msgid "Full Duplex"
+msgstr "全双工"
+
+msgid "Half Duplex"
+msgstr "半双工"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "NFtables Firewall"
+msgstr "NFtables 防火墙"
+
+msgid "IPtables Firewall"
+msgstr "IPtables 防火墙"
+
+msgid "Refresh interval"
+msgstr "刷新间隔"
+
+msgid "Refresh interval in seconds"
+msgstr "刷新间隔（以秒为单位）"
+
+msgid "DNS forwardings"
+msgstr "DNS 转发"
+
+msgid "Resolv and Hosts Files"
+msgstr "HOSTS 和解析文件"
+
+msgid "PXE/TFTP Settings"
+msgstr "PXE/TFTP 设置"
+
+msgid "Use as docker root directory (/opt)"
+msgstr "作为 docker 根目录使用（/opt）"
+
+msgid "Enable FullCone NAT"
+msgstr "全锥形 NAT"
+
+msgid "BCM FullCone NAT scheme"
+msgstr "博通全锥型 NAT 方案"
+
+msgid "Use the Broadcom FullCone NAT scheme if enabled, and use the NFT FullCone scheme if the option is disabled."
+msgstr "启用该选项时使用 Broadcom FullCone NAT 方案，禁用该选项时则使用 nft-fullcone 方案"
+
+msgid "Disable"
+msgstr "禁用"
+
+msgid "Full Cone NAT"
+msgstr "全锥形 NAT"
+
+msgid "Nftables Fullcone nat"
+msgstr "Nftables 全锥形 NAT"
+
+msgid "Nftables based fullcone nat scheme."
+msgstr "基于 Nftables 的全锥形 NAT 方案。"
+
+msgid "Broadcom Fullcone nat"
+msgstr "Broadcom 全锥形 NAT"
+
+msgid "Broadcom based fullcone nat scheme."
+msgstr "基于博通的全锥型 NAT 方案。"
+
+msgid "IPv6 NAT"
+msgstr "IPv6 网络地址转换（NAT6）"
+
+msgid "Applicable to internet environments where the router is not assigned an IPv6 prefix, such as when using an upstream optical modem for dial-up."
+msgstr "适用于没有给路由分配 IPv6 前缀的上网环境，例如：上级光猫拨号"
+
+msgid "Flow offloading type"
+msgstr "流量分载类型"
+
+msgid "Software based offloading for routing/NAT."
+msgstr "基于软件的 路由/NAT 分载。"
+
+msgid "Hardware based offloading for routing with/without NAT."
+msgstr "基于硬件的 路由/NAT 分载。"
+
+msgid "Shortcut-FE flow offloading"
+msgstr "Shortcut-FE 流量分载"
+
+msgid "Shortcut-FE based offloading for routing/NAT"
+msgstr "基于 Shortcut-FE 的 路由/NAT 分载"
+
+msgid "Connection Manager"
+msgstr "连接管理器"
+
+msgid "Set up the Shortcut-FE engine connection manager"
+msgstr "设置 Shortcut-FE 引擎连接管理器"
+
+msgid "Natflow offloading"
+msgstr "Natflow 流量分载"
+
+msgid "Natflow based offloading for routing/NAT"
+msgstr "基于 Natflow 的 路由/NAT 分载"
+
+msgid "Natflow delay packet"
+msgstr "Natflow 延迟数据包"
+
+msgid "Set up the natflow delay packet"
+msgstr "设置 Natflow 延迟数据包"
+
+msgid "Custom rules allow you to execute arbitrary nft commands which are not otherwise covered by the firewall framework. The rules are executed after each firewall restart, right after the default ruleset has been loaded."
+msgstr "自定义规则允许您执行不属于防火墙框架的任意 nft 命令。每次重启防火墙时，这些命令在默认的规则运行后立即执行。"
+
+msgid "Max preferred lifetime"
+msgstr "前缀优先时间上限"
+
+msgid "Max valid lifetime"
+msgstr "前缀有效时间上限"
+
+msgid "DNS redirect"
+msgstr "DNS 重定向"
+
+msgid "Force redirect all local DNS queries to DNSMasq, a.k.a. DNS Hijacking."
+msgstr "强制将所有本地 DNS 查询重定向到 DNSMasq，即 DNS 劫持。"
+
+msgid "RUNNING"
+msgstr "运行中"
+
+msgid "Enables The 802.11k standard provides information to discover the best available access point"
+msgstr "802.11k标准通过协助设备进行漫游决策，从而发现并连接至最佳可用接入点。"

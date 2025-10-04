@@ -1,0 +1,50 @@
+#!/bin/sh
+
+uci -q get system.@imm_init[0] > "/dev/null" || uci -q add system imm_init > "/dev/null"
+
+if ! uci -q get system.@imm_init[0].system_chn > "/dev/null"; then
+	uci -q batch <<-EOF
+		set system.@system[0].timezone="CST-8"
+		set system.@system[0].zonename="Asia/Shanghai"
+
+		delete system.ntp.server
+		add_list system.ntp.server="ntp.tencent.com"
+		add_list system.ntp.server="ntp1.aliyun.com"
+		add_list system.ntp.server="ntp.ntsc.ac.cn"
+		add_list system.ntp.server="cn.ntp.org.cn"
+
+		set system.@imm_init[0].system_chn="1"
+		commit system
+	EOF
+fi
+
+
+# zram
+mem_total=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+zram_size=$(echo | awk "{print int($mem_total*0.25/1024)}")
+uci set system.@system[0].zram_size_mb="$zram_size"
+uci set system.@system[0].zram_comp_algo='lz4'
+uci commit system
+
+# nginx
+uci set nginx.global.uci_enable='true'
+uci del nginx._lan
+uci del nginx._redirect2ssl
+uci add nginx server
+uci rename nginx.@server[0]='_lan'
+uci set nginx._lan.server_name='_lan'
+uci add_list nginx._lan.listen='80 default_server'
+uci add_list nginx._lan.listen='[::]:80 default_server'
+#uci add_list nginx._lan.include='restrict_locally'
+uci add_list nginx._lan.include='conf.d/*.locations'
+uci set nginx._lan.access_log='off; # logd openwrt'
+uci commit nginx
+service nginx restart
+
+
+
+# luci cache
+rm -rf /tmp/luci-modulecache/
+rm -f /tmp/luci-indexcache
+
+exit 0
