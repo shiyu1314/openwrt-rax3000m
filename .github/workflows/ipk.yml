@@ -1,0 +1,405 @@
+name: ipk
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+
+
+env:
+  DIY_P1_SH: sh/op.sh
+
+jobs:
+  build_firmware:
+    name: 编译固件 - ${{ matrix.device }} - ${{ matrix.source }}
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        device: ["rax3000m-emmc"]
+        source: ["openwrt"]
+        include:
+          - device: "rax3000m-emmc"
+            config: "CONFIG_TARGET_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y"
+
+
+    steps: 
+    - name: 检查分支
+      uses: actions/checkout@v4
+
+    - name: 释放磁盘空间
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d
+        sudo swapoff -a
+        sudo rm -f /swapfile /mnt/swapfile
+        sudo docker image prune -a -f
+        sudo systemctl stop docker
+        sudo snap set system refresh.retain=2
+        sudo apt-get -y purge firefox clang* ghc* google* llvm* mono* mongo* mysql* php*
+        sudo apt-get -y autoremove --purge
+        sudo apt-get clean
+        sudo rm -rf /etc/mysql /etc/php /usr/lib/jvm /usr/libexec/docker /usr/local /usr/src/* /var/lib/docker /var/lib/gems /var/lib/mysql /var/lib/snapd /etc/skel /opt/{microsoft,az,hostedtoolcache,cni,mssql-tools,pipx} /usr/share/{az*,dotnet,swift,miniconda,gradle*,java,kotlinc,ri,sbt} /root/{.sbt,.local,.npm}
+        sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
+        rm -rf ~/{.cargo,.dotnet,.rustup}
+        df -Th
+
+    - name: 编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tar img2simg build-essential flex bison cmake g++ gawk gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev libssl-dev python3 python3-pip python3-ply python3-distutils python3-pyelftools rsync unzip zlib1g-dev file wget subversion patch upx-ucl autoconf automake curl asciidoc binutils bzip2 lib32gcc-s1 libc6-dev-i386 uglifyjs msmtp texinfo libreadline-dev libglib2.0-dev xmlto libelf-dev libtool autopoint antlr3 gperf ccache swig coreutils haveged scons libpython3-dev rename qemu-utils
+        sudo apt-get clean
+        git config --global user.name 'GitHub Actions' && git config --global user.email 'noreply@github.com'
+        sudo timedatectl set-timezone 'Asia/Shanghai'
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+        df -Th
+
+    - name: 设置环境变量
+      run: |
+        TAG="$(date +'%Y%m%d')"
+        echo "tag=$TAG" >> $GITHUB_ENV
+        echo "OP_IP=${{ github.event.inputs.OP_IP }}" >> $GITHUB_ENV
+        echo "OP_author=${{ github.event.inputs.OP_author }}" >> $GITHUB_ENV
+        echo "CUSTOM_PLUGINS=${{ github.event.inputs.CUSTOM_PLUGINS }}" >> $GITHUB_ENV
+        echo "DEVICE_NAME=${{ matrix.device }}" >> $GITHUB_ENV
+        echo "SOURCE_NAME=${{ matrix.source }}" >> $GITHUB_ENV
+        echo "OP_SFE=true" >> $GITHUB_ENV
+        
+        # 设置不同源码仓库的变量
+        if [ "${{ matrix.source }}" = "openwrt" ]; then
+          echo "REPO_URL=https://github.com/openwrt/openwrt" >> $GITHUB_ENV
+          echo "REPO_BRANCH=openwrt-24.10" >> $GITHUB_ENV
+        else
+          echo "REPO_URL=https://github.com/immortalwrt/immortalwrt" >> $GITHUB_ENV
+          echo "REPO_BRANCH=openwrt-24.10" >> $GITHUB_ENV
+        fi
+
+    - name: 克隆源代码
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL $SOURCE_NAME
+        ln -sf /workdir/$SOURCE_NAME $GITHUB_WORKSPACE/$SOURCE_NAME
+        
+    - name: 切换分支
+      run: |
+        cd $SOURCE_NAME
+        case $REPO_BRANCH in
+          openwrt-24.10)
+            _release_tag=$(git tag --sort=taggerdate --list 'v24.*' | tail -1)
+            git checkout $_release_tag
+            _prerelease=false
+            ;;
+          openwrt-23.05)
+            _release_tag=$(git tag --sort=taggerdate --list 'v23.*' | tail -1)
+            git checkout $_release_tag
+            _prerelease=false
+            ;;
+          *)
+            echo "Can't get local/upstream's branch/tags"
+            ;;
+        esac
+        echo "release_tag=$_release_tag" >> $GITHUB_ENV
+        
+    - name: 取回缓存 staging_dir
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ matrix.source }}/staging_dir
+        key: ${{ matrix.source }}-toolchain-cache
+        restore-keys: |
+          ${{ matrix.source }}-toolchain-cache
+            
+    - name: patch修补
+      run: |
+        set -x
+        rm -rf $SOURCE_NAME/package/kernel/linux/modules/[a-z]*.mk
+        [ -e patch ] && cp -rf patch/kernel-6.12/modules/*.mk $SOURCE_NAME/package/kernel/linux/modules
+        [ -e tags ] && cp -rf tags/kernel-6.12 $SOURCE_NAME/include
+        rm -rf $SOURCE_NAME/target/linux/generic
+        rm -rf $SOURCE_NAME/package/target/linux/mediatek
+        [ -e patch ] && cp -rf patch/target $SOURCE_NAME
+        [ -e patch ] && cp -rf patch/Config-kernel.in $SOURCE_NAME/config
+        if [ "${{ matrix.source }}" = "openwrt" ]; then
+          sed -i 's#https://git\.openwrt\.org/feed#https://github.com/openwrt#g; s#https://git\.openwrt\.org/project#https://github.com/openwrt#g' $SOURCE_NAME/feeds.conf.default
+        fi
+        if [ "${{ matrix.source }}" = "immortalwrt" ]; then
+          rm -rf $SOURCE_NAME/package/network/config/firewall4/patches
+          rm -rf $SOURCE_NAME/package/network/utils/nftables/patches
+          rm -rf $SOURCE_NAME/package/libs/libnftnl/patches
+          rm -rf $SOURCE_NAME/package/emortal/default-settings
+          [ -e patch ] && cp -rf patch/default-settings $SOURCE_NAME/package/emortal
+        fi
+        cd $SOURCE_NAME
+        find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
+        ./scripts/feeds update -a
+        cd .. 
+        [ -e patch ] && cp -rf patch/firewall4/100-openwrt-firewall4-add-custom-nft-command-support.patch $SOURCE_NAME
+        [ -e patch ] && cp -rf patch/firewall4/luci-24.10/*.patch $SOURCE_NAME/feeds/luci 
+        [ -e patch ] && cp -rf patch/luci/*.patch $SOURCE_NAME/feeds/luci
+        [ -e patch ] && cp -rf patch/iproute2/*.patch openwrt/package/network/utils/iproute2/patches
+        [ -e patch ] && cp -rf patch/openssl/quic/*.patch $SOURCE_NAME/package/libs/openssl/patches
+        mkdir -p $SOURCE_NAME/package/network/services/odhcpd/patches       
+        if [ "${{ matrix.source }}" = "openwrt" ]; then
+          [ -e patch ] && cp -rf patch/automount $SOURCE_NAME/package
+          [ -e patch ] && cp -rf patch/autocore-arm $SOURCE_NAME/package
+          [ -e patch ] && cp -rf patch/odhcpd/*.patch $SOURCE_NAME/package/network/services/odhcpd/patches
+        fi
+        
+    - name: 加载自定义脚本
+      run: |
+        chmod +x $DIY_P1_SH
+        cd $SOURCE_NAME
+        $GITHUB_WORKSPACE/$DIY_P1_SH
+        cd ..
+        [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
+        [ -e patch ] && cp -rf patch/nginx/openwrt-24.10-uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
+        [ -e patch ] && cp -rf patch/turboacc $SOURCE_NAME/package/turboacc/luci-app-turboacc/root/etc/config
+       
+    - name: 加载自定义配置
+      run: |
+        [ -e files ] && mv files $SOURCE_NAME/files
+        cat <<EOF >>$SOURCE_NAME/.config
+        CONFIG_TARGET_mediatek=y
+        CONFIG_TARGET_mediatek_filogic=y
+        CONFIG_KERNEL_PREEMPT_RT=y
+        ${{ matrix.config }}
+        CONFIG_PACKAGE_dnsmasq-full=y
+        CONFIG_PACKAGE_dnsmasq_full_ipset=y
+        # CONFIG_PACKAGE_dnsmasq_full_broken_rtc is not set
+        # CONFIG_PACKAGE_dnsmasq is not set
+        CONFIG_PACKAGE_luci-app-firewall=y
+        CONFIG_PACKAGE_bash=y
+        CONFIG_PACKAGE_ethtool=y
+        CONFIG_PACKAGE_automount=y
+        CONFIG_PACKAGE_autocore-arm=y
+        ### Luci
+        CONFIG_PACKAGE_luci=y
+        CONFIG_PACKAGE_luci-lib-base=y
+        CONFIG_PACKAGE_luci-lib-ip=y
+        CONFIG_PACKAGE_luci-lib-ipkg=y
+        CONFIG_PACKAGE_luci-lib-jsonc=y
+        CONFIG_PACKAGE_luci-lib-nixio=y
+        CONFIG_PACKAGE_luci-nginx=y
+        CONFIG_LUCI_LANG_zh_Hans=y
+        CONFIG_PACKAGE_ariang-nginx=m
+        ### Kernel Modules
+        CONFIG_PACKAGE_kmod-nft-socket=y
+        CONFIG_PACKAGE_kmod-usb-net-rndis=y
+        CONFIG_PACKAGE_kmod-usb-net=y
+        CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+        CONFIG_PACKAGE_kmod-tcp-brutal=y
+        CONFIG_PACKAGE_kmod-tcp-bbr3=y
+        CONFIG_PACKAGE_kmod-ipt-nat6=y
+        CONFIG_PACKAGE_kmod-sched-bpf=y
+        CONFIG_PACKAGE_kmod-sched-cake=y
+        CONFIG_PACKAGE_kmod-sched-core=y
+        CONFIG_PACKAGE_kmod-sched=y
+        ### Utilities
+        CONFIG_PACKAGE_fdisk=y
+        CONFIG_PACKAGE_htop=y
+        CONFIG_PACKAGE_iperf3=y
+        CONFIG_PACKAGE_iputils-ping=y
+        CONFIG_PACKAGE_less=y
+        CONFIG_PACKAGE_lsblk=y
+        CONFIG_PACKAGE_lscpu=y
+        CONFIG_PACKAGE_lsof=y
+        CONFIG_PACKAGE_openssh-sftp-server=y
+        CONFIG_PACKAGE_pciutils=y
+        CONFIG_PACKAGE_rename=y
+        CONFIG_PACKAGE_rsync=y
+        CONFIG_PACKAGE_sed=y
+        CONFIG_PACKAGE_unzip=y
+        CONFIG_PACKAGE_usbutils=y
+        CONFIG_PACKAGE_vim=y
+        CONFIG_PACKAGE_wget-ssl=y
+        CONFIG_PACKAGE_wpad-openssl=y
+        ### OpenSSL
+        CONFIG_OPENSSL_ENGINE=y
+        CONFIG_OPENSSL_OPTIMIZE_SPEED=y
+        CONFIG_OPENSSL_WITH_ASM=y
+        CONFIG_PACKAGE_libopenssl-afalg=y
+        CONFIG_PACKAGE_libopenssl-conf=y
+        CONFIG_PACKAGE_libopenssl-devcrypto=y
+        CONFIG_PACKAGE_libopenssl-legacy=y
+        CONFIG_PACKAGE_openssl-util=y
+        # CONFIG_PACKAGE_libopenssl-padlock is not set
+        # CONFIG_OPENSSL_WITH_ERROR_MESSAGES is not set
+        ### nginx
+        CONFIG_PACKAGE_nginx-ssl=y
+        CONFIG_PACKAGE_nginx-mod-brotli=y
+        CONFIG_PACKAGE_nginx-mod-luci=y
+        CONFIG_PACKAGE_nginx-mod-rtmp=y
+        CONFIG_PACKAGE_nginx-mod-stream=y
+        CONFIG_PACKAGE_nginx-mod-ubus=y
+        CONFIG_PACKAGE_nginx-mod-zstd=y
+        CONFIG_PACKAGE_nginx-ssl-util=y
+        CONFIG_NGINX_DAV=y
+        CONFIG_NGINX_HTTP_AUTH_BASIC=y
+        CONFIG_NGINX_HTTP_QUIC=y
+        CONFIG_NGINX_HTTP_REAL_IP=y
+        CONFIG_NGINX_HTTP_SUB=y
+        CONFIG_NGINX_STREAM_REAL_IP=y
+        ### Firewall
+        CONFIG_PACKAGE_nat6=y
+        CONFIG_PACKAGE_ip6tables-nft=y
+        CONFIG_PACKAGE_ip6tables-mod-nat=y
+        CONFIG_PACKAGE_iptables-mod-conntrack-extra=y
+        CONFIG_PACKAGE_iptables-mod-iprange=y
+        CONFIG_PACKAGE_iptables-mod-nat-extra=y
+        CONFIG_PACKAGE_iptables-mod-socket=y
+        CONFIG_PACKAGE_iptables-mod-tproxy=y
+        CONFIG_PACKAGE_iptables-nft=y
+        CONFIG_PACKAGE_libip4tc=y
+        CONFIG_PACKAGE_libip6tc=y
+        CONFIG_PACKAGE_xtables-nft=y
+        # CONFIG_PACKAGE_iptables-legacy is not set
+        ### Busybox
+        CONFIG_BUSYBOX_CUSTOM=y
+        CONFIG_BUSYBOX_CONFIG_ASH_HELP=y
+        CONFIG_BUSYBOX_CONFIG_FEATURE_EDITING_HISTORY=1024
+        CONFIG_BUSYBOX_CONFIG_FEATURE_EDITING_SAVEHISTORY=y
+        CONFIG_BUSYBOX_CONFIG_FEATURE_PREFER_IPV4_ADDRESS=y
+        CONFIG_BUSYBOX_CONFIG_FEATURE_SH_HISTFILESIZE=y
+        CONFIG_BUSYBOX_CONFIG_FEATURE_SYSLOG_INFO=y
+        ### GNU Core Utilities
+        CONFIG_PACKAGE_coreutils=y
+        CONFIG_PACKAGE_coreutils-cat=y
+        CONFIG_PACKAGE_coreutils-chmod=y
+        CONFIG_PACKAGE_coreutils-chown=y
+        CONFIG_PACKAGE_coreutils-chroot=y
+        CONFIG_PACKAGE_coreutils-cp=y
+        CONFIG_PACKAGE_coreutils-base64=y
+        CONFIG_PACKAGE_coreutils-date=y
+        CONFIG_PACKAGE_coreutils-dd=y
+        CONFIG_PACKAGE_coreutils-dircolors=y
+        CONFIG_PACKAGE_coreutils-ls=y
+        CONFIG_PACKAGE_coreutils-mkdir=y
+        CONFIG_PACKAGE_coreutils-mv=y
+        CONFIG_PACKAGE_coreutils-nproc=y
+        CONFIG_PACKAGE_coreutils-rm=y
+        CONFIG_PACKAGE_coreutils-sha1sum=y
+        CONFIG_PACKAGE_coreutils-sha512sum=y
+        CONFIG_PACKAGE_coreutils-sleep=y
+        CONFIG_PACKAGE_coreutils-timeout=y
+        CONFIG_PACKAGE_coreutils-truncate=y
+        CONFIG_PACKAGE_coreutils-nano=y
+        CONFIG_ZLIB_OPTIMIZE_SPEED=y
+        ### L2TP
+        CONFIG_PACKAGE_kmod-l2tp=y
+        CONFIG_PACKAGE_kmod-pppol2tp=y
+        CONFIG_PACKAGE_ppp-mod-pppol2tp=y
+        CONFIG_PACKAGE_xl2tpd=y
+        ### Zram
+        CONFIG_PACKAGE_zram-swap=y
+        CONFIG_PACKAGE_kmod-lib-lz4=y
+        CONFIG_PACKAGE_kmod-lib-lzo=y
+        CONFIG_PACKAGE_kmod-lib-zstd=y
+        ### Luci Apps
+        CONFIG_PACKAGE_luci-app-adguardhome=m
+        CONFIG_PACKAGE_luci-app-airconnect=m
+        CONFIG_PACKAGE_luci-app-aria2=m
+        CONFIG_PACKAGE_luci-app-autoreboot=m
+        CONFIG_PACKAGE_luci-app-cifs-mount=m
+        CONFIG_PACKAGE_luci-app-cpufreq=m
+        CONFIG_PACKAGE_luci-app-ddns-go=m
+        CONFIG_PACKAGE_luci-app-diskman=m
+        CONFIG_PACKAGE_luci-app-dockerman=m
+        CONFIG_PACKAGE_luci-app-emby=m
+        CONFIG_PACKAGE_luci-app-filebrowser-go=m
+        CONFIG_PACKAGE_luci-app-frpc=m
+        CONFIG_PACKAGE_luci-app-frps=m
+        CONFIG_PACKAGE_luci-app-gowebdav=m
+        CONFIG_PACKAGE_luci-app-hd-idle=m
+        CONFIG_PACKAGE_luci-app-ksmbd=m
+        CONFIG_PACKAGE_luci-app-lucky=m
+        CONFIG_PACKAGE_luci-app-mentohust=m
+        CONFIG_PACKAGE_luci-app-mosdns=m
+        CONFIG_PACKAGE_luci-app-momo=m
+        CONFIG_PACKAGE_luci-app-netdata=m
+        CONFIG_PACKAGE_luci-app-netspeedtest=m
+        CONFIG_PACKAGE_luci-app-nfs=m
+        CONFIG_PACKAGE_luci-app-nlbwmon=m
+        CONFIG_PACKAGE_luci-app-oaf=m
+        CONFIG_PACKAGE_luci-app-openlist2=m
+        CONFIG_PACKAGE_luci-app-qbittorrent=m
+        CONFIG_PACKAGE_luci-app-qosmate=m
+        CONFIG_PACKAGE_luci-app-ramfree=m
+        CONFIG_PACKAGE_luci-app-samba4=m
+        CONFIG_PACKAGE_luci-app-smartdns=m
+        CONFIG_PACKAGE_luci-app-socat=m
+        CONFIG_PACKAGE_luci-app-tailscale=m
+        CONFIG_PACKAGE_luci-app-usb-printer=m
+        CONFIG_PACKAGE_luci-app-vlmcsd=m
+        CONFIG_PACKAGE_luci-app-zerotier=m
+        CONFIG_PACKAGE_luci-app-homeproxy=m
+        CONFIG_PACKAGE_luci-app-nikki=m
+        CONFIG_PACKAGE_luci-app-openclash=m
+        CONFIG_PACKAGE_luci-theme-material3=y
+        CONFIG_PACKAGE_luci-app-quickstart=m
+        CONFIG_PACKAGE_luci-app-argon-config=m
+        CONFIG_PACKAGE_luci-theme-argon=m
+        CONFIG_PACKAGE_luci-app-istorex=m
+        CONFIG_PACKAGE_luci-app-verysync=m
+        CONFIG_PACKAGE_luci-app-syncthing=m
+        CONFIG_PACKAGE_luci-app-eqosplus=m
+        CONFIG_PACKAGE_luci-app-turboacc=m
+        ##sfe
+        CONFIG_PACKAGE_kmod-fast-classifier=y
+        CONFIG_PACKAGE_kmod-shortcut-fe=y
+        CONFIG_PACKAGE_kmod-shortcut-fe-cm=y
+        EOF
+        
+        sed -i "s/192.168.1.1/192.168.2.1/" openwrt/package/base-files/files/bin/config_generate   
+    
+    - name: 下载编译依赖
+      id: package
+      run: |
+        cd $SOURCE_NAME
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+    
+    - name: 编译源码
+      id: compile
+      run: |
+        cd $SOURCE_NAME
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+
+    - name: 查看磁盘使用情况
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 整理文件
+      id: organize
+      run: |
+        mkdir -p $SOURCE_NAME/bin/packages/aarch64_cortex-a53/kmod
+        cp -rf $SOURCE_NAME/bin/targets/*/*/*/* openwrt/bin/packages/aarch64_cortex-a53/kmod
+        rm -rf $SOURCE_NAME/bin/packages/*/routing
+        rm -rf $SOURCE_NAME/bin/packages/*/telephony
+        cd $SOURCE_NAME/bin/targets/*/*
+        rm -rf packages
+        rm -rf *.buildinfo
+        rm -rf profiles.json
+        rm -rf *.manifest
+        rm -rf *bl2.bin
+        rm -rf *kernel.bin
+        rm -rf *.sha
+        rm -rf sha256sums
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+
+    - name: 上传ipk
+      env:
+        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        cd $SOURCE_NAME/bin/packages
+        git init
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "${{ env.tag }}"
+        git branch -M main
+        git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/rax3000m
+        git push -u origin main --force

@@ -1,0 +1,33 @@
+#!/bin/sh
+
+CPUINFO_PATH="/proc/cpuinfo"
+
+# 根据CPU信息生成架构名称
+cpu_implementer="$(awk -F ': ' '/CPU implementer/ {print $2}' "$CPUINFO_PATH" | head -n1)"
+cpu_part="$(awk -F ': ' '/CPU part/ {print $2}' "$CPUINFO_PATH" | head -n1)"
+cpu_revision="$(awk -F ': ' '/CPU revision/ {print $2}' "$CPUINFO_PATH" | head -n1)"
+
+# 判断CPU型号
+case "$cpu_implementer:$cpu_part" in
+    "0x41:0xd03")
+        cpu_arch="ARM Cortex-A53" ;;
+    "0x41:0xd04")
+        cpu_arch="ARM Cortex-A35" ;;
+    "0x41:0xd05")
+        cpu_arch="ARM Cortex-A55" ;;
+    "0x41:0xd07")
+        cpu_arch="ARM Cortex-A57" ;;
+    "0x41:0xd08")
+        cpu_arch="ARM Cortex-A72" ;;
+    *)
+        cpu_arch="ARMv8 Processor" ;;
+esac
+
+# 添加修订版本信息
+cpu_arch="$cpu_arch rev $cpu_revision (v8l)"
+
+# 获取CPU核心数
+cpu_cores="$(grep -c "processor" "$CPUINFO_PATH")"
+
+# 输出格式化
+echo -n "$cpu_arch x $cpu_cores"
