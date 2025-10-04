@@ -154,7 +154,6 @@ jobs:
         cat <<EOF >>$SOURCE_NAME/.config
         CONFIG_TARGET_mediatek=y
         CONFIG_TARGET_mediatek_filogic=y
-        CONFIG_KERNEL_PREEMPT_RT=y
         ${{ matrix.config }}
         CONFIG_PACKAGE_dnsmasq-full=y
         CONFIG_PACKAGE_dnsmasq_full_ipset=y
