@@ -7,7 +7,7 @@ on:
       OP_IP:
         description: '静态IP地址'     
         required: false
-        default: '192.168.2.1' 
+        default: '192.168.1.2' 
         type: string
       OP_author:
         description: '定制作者'     
@@ -17,7 +17,7 @@ on:
       CUSTOM_PLUGINS:
         description: '自定义插件名称，用空格分隔'
         required: false
-        default: 'luci-theme-m3e luci-app-ttyd luci-app-diskman luci-app-momo'
+        default: 'luci-theme-aurora luci-app-ttyd luci-app-diskman luci-app-irqbalance luci-app-openclash'
         type: string
 
 env:
