@@ -1,0 +1,93 @@
+name: apk to Release
+on:
+  workflow_dispatch:  # 手动触发
+    inputs:
+      release_tag:
+        description: 'Release 标签（留空则自动生成时间戳）'
+        required: false
+        type: string
+      release_name:
+        description: 'Release 名称（留空则自动生成）'
+        required: false
+        type: string
+
+permissions:
+  contents: write  # 允许创建 Release 并上传资产
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 列出 apk 下的所有子文件夹
+      - name: Scan plugin directories
+        id: scan
+        run: |
+          if [ ! -d "apk" ]; then
+            echo "错误：apk 目录不存在"
+            exit 1
+          fi
+          # 获取所有一级子目录名（每个代表一个插件）
+          PLUGINS=$(find apk -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
+          if [ -z "$PLUGINS" ]; then
+            echo "警告：apk 目录下没有子文件夹，无内容可打包"
+            echo "plugins=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "发现插件：$PLUGINS"
+          # 将插件列表保存为多行输出，供后续步骤使用
+          echo "plugins<<EOF" >> $GITHUB_OUTPUT
+          echo "$PLUGINS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Package each plugin into ZIP
+        if: steps.scan.outputs.plugins != ''
+        run: |
+          mkdir -p release_assets
+          echo "${{ steps.scan.outputs.plugins }}" | while read plugin; do
+            if [ -z "$plugin" ]; then continue; fi
+            echo "正在打包插件: $plugin"
+            cd apk
+            zip -r "../release_assets/${plugin}.zip" "$plugin"
+            cd ..
+          done
+          echo "打包完成，生成的文件："
+          ls -la release_assets/
+
+      - name: Set release tag and name
+        id: release_info
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="apk-bundle-$(date +'%Y%m%d-%H%M%S')"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          
+          if [ -n "${{ github.event.inputs.release_name }}" ]; then
+            NAME="${{ github.event.inputs.release_name }}"
+          else
+            NAME="APK 插件包 - $(date +'%Y-%m-%d %H:%M:%S')"
+          fi
+          echo "name=${NAME}" >> $GITHUB_OUTPUT
+
+      # 创建 Release 并上传所有 ZIP 资产
+      - name: Create Release and upload assets
+        if: steps.scan.outputs.plugins != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.name }}
+          body: |
+            本次 Release 包含以下插件包（来自 `apk/` 下的子目录）：
+            ${{ steps.scan.outputs.plugins }}
+            
+            每个 `.zip` 文件对应一个插件，解压后即为该插件的所有 APK 文件。
+          draft: false
+          prerelease: false
+          files: release_assets/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
