@@ -1,0 +1,270 @@
+# ==============================
+#  Nikki 最终自用完整配置
+# 模式：策略路由(仿OpenClash) + 开启Fake-IP + IPv6全开
+# 规则外流量全部直连，游戏/本地软件不受影响
+# ==============================
+
+# 混合代理端口 HTTP/SOCKS5 共用端口
+mixed-port: 7890
+# 允许局域网其他设备使用代理
+allow-lan: true
+# 监听本机所有网卡IP
+bind-address: 0.0.0.0
+# 运行模式：按规则分流
+mode: rule
+# 日志级别 error只输出错误，干净不刷屏
+log-level: error
+# 开启IPv6支持
+ipv6: true
+# 开启UDP转发(游戏/语音/流媒体必备)
+udp: true
+# 域名匹配严格模式
+find-process-mode: strict
+# 模拟浏览器请求指纹，降低风控
+global-client-fingerprint: chrome
+# TCP长连接保活间隔
+keep-alive-interval: 30
+
+# 开启规则内存缓存，加快分流速度，减少重复联网
+rule-cache: true
+
+# 规则订阅走代理拉取，不直连，确保规则正常更新
+profile:
+  rule-providers-direct: true        # 保留，兼容OpenClash
+
+
+# 关闭TUN虚拟网卡(不用全局劫持，避免游戏乱跑代理)
+tun:
+  enable: false
+
+# 策略路由模式 = 和OpenClash自动分流一模一样，不用手动填代理
+routing:
+  auto-redir: true          # 自动注入路由表实现全局分流
+  auto-detect-interface: true # 自动识别上网网卡
+  mark: 233                 # 路由标记，无需修改
+
+# 网页控制后台地址+密码
+# 192.168.1.2:9090
+external-controller: 0.0.0.0:9090
+secret: "VZwfEX69"
+
+# ==============================
+# 节点订阅组
+# ==============================
+proxy-providers:
+  # 低速备用节点组
+  限量机场:
+    type: http
+    url: "https://a.bbydy.org/api/bby/client/subscribe?token=11937c3ea30b86b8f0a904c9ebff5fbbd8"
+    interval: 3600          # 1小时自动更新订阅
+    user-agent: "Clash/1.18.0"
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 180          # 180秒节点测速
+
+  # 主力高速节点组1
+  不限量机场:
+    type: http
+    url: "https://8.217.98.112:1000/config?token=30f9f938c55cd934cb34c124bad0ff0f85"
+    interval: 3600
+    user-agent: "Clash/1.18.0"
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 180
+
+  # 主力高速节点组2
+  不限量机场2:
+    type: http
+    url: "https://nodesfree.github.io/clashnode/clash.yaml"
+    interval: 3600
+    user-agent: "Clash/1.18.0"
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 180
+
+  # 主力高速节点组3
+  不限量机场3:
+    type: http
+    url: "https://IwhkWO.mcsslk.xyz/162def6d0f4d8bab04ccc61560092683"
+    interval: 3600
+    user-agent: "Clash/1.18.0"
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 180
+
+# ==============================
+# 分流策略组
+# ==============================
+proxy-groups:
+  # 自动选延迟最低节点
+  - name: 不限量合集
+    type: url-test
+    use:
+      - 不限量机场
+      - 不限量机场2
+      - 不限量机场3
+    url: http://www.gstatic.com/generate_204
+    interval: 180
+    tolerance: 50
+    max-failed: 2
+
+  # 故障备用节点
+  - name: 限量兜底
+    type: url-test
+    use:
+      - 限量机场
+    url: http://www.gstatic.com/generate_204
+    interval: 180
+    max-failed: 2
+
+  # 外网专用分组：故障自动切换备用
+  - name: PROXY
+    type: fallback
+    proxies:
+      - 不限量合集
+      - 限量兜底
+      - DIRECT      # 新增：需要时手动切直连
+      - 禁止访问
+    interval: 180
+    idle-timeout: 20
+
+  # 国内站点分组：手动选择直连/代理
+  - name: DOMESTIC
+    type: select
+    proxies:
+      - DIRECT      # 新增：需要时手动切直连
+      - PROXY      # 新增：需要时手动切代理
+      - 禁止访问
+
+  # 新增：禁止访问分组
+  - name: 禁止访问
+    type: select
+    proxies:
+      - REJECT
+
+# ==============================
+# DNS 域名解析配置 【核心】
+# enhanced-mode: fake-ip 开启防劫持、广告拦截、快速分流
+# ==============================
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  ipv6: true
+  enhanced-mode: fake-ip       # 开启Fake-IP 防DNS劫持+拦截广告
+  fake-ip-range: 198.18.0.1/16 # 虚拟IP网段，固定不用改
+  # 默认国内DNS
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  # 日常解析使用国内DNS
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  # 国外域名备用DNS
+  fallback:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  # 国内IP强制走国内DNS
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/12
+
+  # ==============================================
+  # 【Fake-IP解析白名单】
+  # 作用：域名不走虚拟假IP，强制真实DNS解析
+  # 解决开Fake-IP后网站打不开、解析失败问题
+  # 新增打不开的域名直接在这里添加
+  # ==============================================
+  nameserver-policy:
+    # 所有大陆域名强制国内纯净DNS，防劫持防污染
+    "geosite:cn": [223.5.5.5, 119.29.29.29]
+    # 自定义白名单站点固定本地解析
+    "ipin.io": 223.5.5.5
+    "*.ipin.io": 223.5.5.5
+    # 格式示例
+    # "xxx.com": 223.5.5.5
+    # "*.xxx.com": 223.5.5.5
+
+# ==============================
+# 远程规则订阅库
+# ==============================
+rule-providers:
+  # 广告黑名单规则
+  reject:
+    type: http
+    behavior: domain
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/reject.txt"
+    path: ./ruleset/reject.yaml
+    interval: 86400 # 24小时更新一次
+
+  # 国外网站规则
+  proxy:
+    type: http
+    behavior: domain
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/proxy.txt"
+    path: ./ruleset/proxy.yaml
+    interval: 86400
+
+  # 国内网站规则
+  direct:
+    type: http
+    behavior: domain
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/direct.txt"
+    path: ./ruleset/direct.yaml
+    interval: 86400
+
+  # 内网私有地址规则
+  private:
+    type: http
+    behavior: domain
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/private.txt"
+    path: ./ruleset/private.yaml
+    interval: 86400
+
+  # 局域网IP段规则
+  lancidr:
+    type: http
+    behavior: ipcidr
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/lancidr.txt"
+    path: ./ruleset/lancidr.yaml
+    interval: 86400
+
+  # 中国大陆IP段规则
+  cncidr:
+    type: http
+    behavior: ipcidr
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/cncidr.txt"
+    path: ./ruleset/cncidr.yaml
+    interval: 86400
+
+# ==============================
+# 最终分流执行顺序规则
+# ==============================================
+# 【路由强制白名单】
+# 作用：强制该域名全程直连，不走任何代理
+# 和上面DNS白名单搭配使用，完美兼容Fake-IP
+# ==============================================
+rules:
+ # 白名单网站强制直连【最高优先级1】
+  - DOMAIN-SUFFIX,ipin.io,DIRECT        
+  - DOMAIN,dc.sigmob.cn,DIRECT
+# ==============================================
+  - RULE-SET,private,DIRECT              # 内网地址直连
+  - RULE-SET,lancidr,DIRECT              # 局域网IP直连
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,local,DIRECT
+  - RULE-SET,reject,REJECT               # 拦截所有广告域名
+  - RULE-SET,proxy,PROXY                 # 国外网站走代理
+  - RULE-SET,direct,DOMESTIC             # 国内网站走国内组
+  - RULE-SET,cncidr,DOMESTIC             # 国内IP走国内组
+# ==============================================
+# IP精准分流
+ - GEOIP,CN,DIRECT                      # 【最高优先级2】只要是中国大陆IP → 直接强制直连，不往下走任何规则
+  - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
+  - MATCH,DIRECT                         # 所有未匹配到的流量【全部直连】
