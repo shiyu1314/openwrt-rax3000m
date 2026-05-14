@@ -1,0 +1,65 @@
+name: 上传Release固件到坚果云
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 获取并下载所有 Release 固件
+        id: download
+        run: |
+          # 获取最新 Release 的所有 assets 信息
+          ASSETS=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[].browser_download_url')
+          if [ -z "$ASSETS" ]; then
+            echo "错误：没有找到任何 Release asset"
+            exit 1
+          fi
+          
+          # 逐个下载
+          echo "$ASSETS" | while read -r DOWNLOAD_URL; do
+            FILE_NAME=$(basename "$DOWNLOAD_URL")
+            echo "下载: $FILE_NAME"
+            wget -O "$FILE_NAME" "$DOWNLOAD_URL"
+          done
+          
+          ls -lh
+
+      - name: 上传所有固件到坚果云（自动创建子目录）
+        run: |
+          # 设置坚果云中的子目录名
+          DIR_NAME="github_firmware"
+          
+          # 创建子目录（忽略已存在错误）
+          curl -u "${{ secrets.WEBDAV_USERNAME }}:${{ secrets.WEBDAV_PASSWORD }}" \
+               -X MKCOL "https://dav.jianguoyun.com/dav/$DIR_NAME" || true
+          
+          # 遍历当前目录下的所有 .bin 文件（根据实际情况可修改匹配模式）
+          for FILE_NAME in *.bin; do
+            # 如果没有 .bin 文件，跳过
+            [ -e "$FILE_NAME" ] || continue
+            
+            echo "上传: $FILE_NAME"
+            
+            # URL 编码文件名
+            ENCODED_NAME=$(printf '%s' "$FILE_NAME" | jq -sRr @uri)
+            
+            # 上传并获取 HTTP 状态码
+            HTTP_CODE=$(curl -u "${{ secrets.WEBDAV_USERNAME }}:${{ secrets.WEBDAV_PASSWORD }}" \
+                             -T "$FILE_NAME" \
+                             -w '%{http_code}' \
+                             -o /dev/null \
+                             -s \
+                             "https://dav.jianguoyun.com/dav/$DIR_NAME/$ENCODED_NAME")
+            
+            if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+              echo "✅ $FILE_NAME 上传成功 (HTTP $HTTP_CODE)"
+            else
+              echo "❌ $FILE_NAME 上传失败 (HTTP $HTTP_CODE)"
+              exit 1
+            fi
+          done
+          
+          echo "所有固件上传完成"
