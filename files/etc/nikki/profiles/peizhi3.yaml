@@ -127,8 +127,6 @@ proxy-groups:
     proxies:
       - 不限量合集
       - 限量兜底
-      - DIRECT      # 新增：需要时手动切直连
-      - 禁止访问
     interval: 180
     idle-timeout: 20
 
@@ -138,13 +136,7 @@ proxy-groups:
     proxies:
       - DIRECT      # 新增：需要时手动切直连
       - PROXY      # 新增：需要时手动切代理
-      - 禁止访问
-
-  # 新增：禁止访问分组
-  - name: 禁止访问
-    type: select
-    proxies:
-      - REJECT
+      - REJECT     # 新增：需要时手动切禁止
 
 # ==============================
 # DNS 域名解析配置 【核心】
@@ -251,20 +243,20 @@ rule-providers:
 # 和上面DNS白名单搭配使用，完美兼容Fake-IP
 # ==============================================
 rules:
- # 白名单网站强制直连【最高优先级1】
+ # 白名单网站强制直连【手动白名单网站】不想网站走代理加这里
   - DOMAIN-SUFFIX,ipin.io,DIRECT        
   - DOMAIN,dc.sigmob.cn,DIRECT
 # ==============================================
   - RULE-SET,private,DIRECT              # 内网地址直连
   - RULE-SET,lancidr,DIRECT              # 局域网IP直连
-  - DOMAIN-SUFFIX,lan,DIRECT
-  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT        # 系统网络禁止代理
+  - DOMAIN-SUFFIX,local,DIRECT      # 系统网络禁止代理
   - RULE-SET,reject,REJECT               # 拦截所有广告域名
+# ==============================================
   - RULE-SET,proxy,PROXY                 # 国外网站走代理
   - RULE-SET,direct,DOMESTIC             # 国内网站走国内组
-  - RULE-SET,cncidr,DOMESTIC             # 国内IP走国内组
 # ==============================================
 # IP精准分流
- - GEOIP,CN,DIRECT                      # 【最高优先级2】只要是中国大陆IP → 直接强制直连，不往下走任何规则
+  - GEOIP,CN,DOMESTIC                      # 【最高优先级2】只要是中国大陆IP → 国内切换组
   - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
   - MATCH,DIRECT                         # 所有未匹配到的流量【全部直连】
