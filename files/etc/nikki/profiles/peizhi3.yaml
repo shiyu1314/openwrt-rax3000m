@@ -137,7 +137,6 @@ proxy-groups:
       - DIRECT      # 新增：需要时手动切直连
       - PROXY      # 新增：需要时手动切代理
       - REJECT     # 新增：需要时手动切禁止
-
 # ==============================
 # DNS 域名解析配置 【核心】
 # enhanced-mode: fake-ip 开启防劫持、广告拦截、快速分流
@@ -148,6 +147,12 @@ dns:
   ipv6: true
   enhanced-mode: fake-ip       # 开启Fake-IP 防DNS劫持+拦截广告
   fake-ip-range: 198.18.0.1/16 # 虚拟IP网段，固定不用改
+
+  # 关闭Geosite启动全量预加载（解决重启CPU/内存爆满）
+  # 优点：重启不卡、不爆内存、低负载运行
+  # 缺点：首次访问国内域名极轻微延迟，二次访问恢复极速
+  geosite-preload: false
+
   # 默认国内DNS
   default-nameserver:
     - 223.5.5.5
@@ -166,7 +171,6 @@ dns:
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/12
-
   # ==============================================
   # 【Fake-IP解析白名单】
   # 作用：域名不走虚拟假IP，强制真实DNS解析
