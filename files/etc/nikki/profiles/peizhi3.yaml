@@ -23,6 +23,7 @@ find-process-mode: strict
 # 模拟浏览器请求指纹，降低风控
 global-client-fingerprint: chrome
 # TCP长连接保活间隔
+keep-alive: true
 keep-alive-interval: 30
 
 # 开启规则内存缓存，加快分流速度，减少重复联网
@@ -30,7 +31,7 @@ rule-cache: true
 
 # 规则订阅走代理拉取，不直连，确保规则正常更新
 profile:
-  rule-providers-direct: true        # 保留，兼容OpenClash
+  rule-providers-direct: false        # 保留，兼容OpenClash
 
 
 # 关闭TUN虚拟网卡(不用全局劫持，避免游戏乱跑代理)
@@ -58,10 +59,6 @@ proxy-providers:
     url: "https://a.bbydy.org/api/bby/client/subscribe?token=11937c3ea30b86b8f0a904c9ebff5fbbd8"
     interval: 3600          # 1小时自动更新订阅
     user-agent: "Clash/1.18.0"
-    health-check:
-      enable: true
-      url: http://www.gstatic.com/generate_204
-      interval: 180          # 180秒节点测速
 
   # 主力高速节点组1
   不限量机场:
@@ -69,10 +66,6 @@ proxy-providers:
     url: "https://8.217.98.112:1000/config?token=30f9f938c55cd934cb34c124bad0ff0f85"
     interval: 3600
     user-agent: "Clash/1.18.0"
-    health-check:
-      enable: true
-      url: http://www.gstatic.com/generate_204
-      interval: 180
 
   # 主力高速节点组2
   不限量机场2:
@@ -80,10 +73,6 @@ proxy-providers:
     url: "https://nodesfree.github.io/clashnode/clash.yaml"
     interval: 3600
     user-agent: "Clash/1.18.0"
-    health-check:
-      enable: true
-      url: http://www.gstatic.com/generate_204
-      interval: 180
 
   # 主力高速节点组3
   不限量机场3:
@@ -91,10 +80,6 @@ proxy-providers:
     url: "https://IwhkWO.mcsslk.xyz/162def6d0f4d8bab04ccc61560092683"
     interval: 3600
     user-agent: "Clash/1.18.0"
-    health-check:
-      enable: true
-      url: http://www.gstatic.com/generate_204
-      interval: 180
 
 # ==============================
 # 分流策略组
@@ -107,19 +92,14 @@ proxy-groups:
       - 不限量机场
       - 不限量机场2
       - 不限量机场3
-    url: http://www.gstatic.com/generate_204
-    interval: 180
-    tolerance: 50
-    max-failed: 2
+
 
   # 故障备用节点
   - name: 限量兜底
     type: url-test
     use:
       - 限量机场
-    url: http://www.gstatic.com/generate_204
-    interval: 180
-    max-failed: 2
+
 
   # 外网专用分组：故障自动切换备用
   - name: PROXY
@@ -134,9 +114,9 @@ proxy-groups:
   - name: DOMESTIC
     type: select
     proxies:
-      - DIRECT      # 新增：需要时手动切直连
-      - PROXY      # 新增：需要时手动切代理
-      - REJECT     # 新增：需要时手动切禁止
+      - DIRECT      # 需要时手动切直连
+      - PROXY      #需要时手动切代理
+      - REJECT     #需要时手动切禁止
 # ==============================
 # DNS 域名解析配置 【核心】
 # enhanced-mode: fake-ip 开启防劫持、广告拦截、快速分流
@@ -145,13 +125,28 @@ dns:
   enable: true
   listen: 0.0.0.0:53
   ipv6: true
-  enhanced-mode: fake-ip       # 开启Fake-IP 防DNS劫持+拦截广告
-  fake-ip-range: 198.18.0.1/16 # 虚拟IP网段，固定不用改
+# ==============================
+# 网站解析方法 
+# 开启fakeip模式取消注释即可  慢但准确
+# 开启Mixed模式启用注释即可  快但可能漏
+# 当前为Mixed模式
+# enhanced-mode: fake-ip       # 开启Fake-IP 防DNS劫持+拦截广告
+# fake-ip-range: 198.18.0.1/16 # 虚拟IP网段，固定不用改
+# ==============================
+# dns缓存 
+  cache-size: 2000        # 最多存2000条域名解析记录
+  cache-expire: 1800       # 缓存有效期 30分钟（单位：秒）
+  cache-algorithm: arc     # 最优缓存淘汰算法（自动清老记录，推荐）
+  dns-preload: true         # 域名预解析缓存
+# ==============================
+  # 调用你拉取的 dns-filter 规则（Fake-IP 白名单生效）
+  fake-ip-filter:
+    - rule-set:dns-filter
 
-  # 关闭Geosite启动全量预加载（解决重启CPU/内存爆满）
+  # 开启/关闭Geosite启动全量预加载（解决重启CPU/内存爆满）
   # 优点：重启不卡、不爆内存、低负载运行
   # 缺点：首次访问国内域名极轻微延迟，二次访问恢复极速
-  geosite-preload: false
+  geosite-preload: true
 
   # 默认国内DNS
   default-nameserver:
@@ -165,12 +160,16 @@ dns:
   fallback:
     - https://dns.google/dns-query
     - https://cloudflare-dns.com/dns-query
+    - 8.8.8.8          # 备用纯IP DNS，更稳定
+    - 1.1.1.1
   # 国内IP强制走国内DNS
   fallback-filter:
     geoip: true
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/12
+    check: true  #解析失败自动切境外DNS，解决国内被墙/污染域名
+
   # ==============================================
   # 【Fake-IP解析白名单】
   # 作用：域名不走虚拟假IP，强制真实DNS解析
@@ -180,6 +179,11 @@ dns:
   nameserver-policy:
     # 所有大陆域名强制国内纯净DNS，防劫持防污染
     "geosite:cn": [223.5.5.5, 119.29.29.29]
+    # 规则订阅域名强制境外DNS解析（解决拉取规则失败）
+    "raw.gitmirror.com": [8.8.8.8]
+    "raw.githubusercontent.com": [8.8.8.8]
+    "cdn.jsdelivr.net": [1.1.1.1]
+    "nodesfree.github.io": [1.1.1.1]
     # 自定义白名单站点固定本地解析
     "ipin.io": 223.5.5.5
     "*.ipin.io": 223.5.5.5
@@ -198,6 +202,10 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/reject.txt"
     path: ./ruleset/reject.yaml
     interval: 86400 # 24小时更新一次
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
   # 国外网站规则
   proxy:
@@ -206,6 +214,10 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/proxy.txt"
     path: ./ruleset/proxy.yaml
     interval: 86400
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
   # 国内网站规则
   direct:
@@ -214,6 +226,10 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/direct.txt"
     path: ./ruleset/direct.yaml
     interval: 86400
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
   # 内网私有地址规则
   private:
@@ -222,6 +238,10 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/private.txt"
     path: ./ruleset/private.yaml
     interval: 86400
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
   # 局域网IP段规则
   lancidr:
@@ -230,6 +250,10 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/lancidr.txt"
     path: ./ruleset/lancidr.yaml
     interval: 86400
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
   # 中国大陆IP段规则
   cncidr:
@@ -238,7 +262,22 @@ rule-providers:
     url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/cncidr.txt"
     path: ./ruleset/cncidr.yaml
     interval: 86400
+    proxy: PROXY                 # 规则下载走代理
+    proxy-respect-rules: true    # 规则下载遵守分流
+    lazy: true                   # 启动不卡
+    dns-respect-rules: true      # 规则解析遵守分流
 
+  # DNS分流规则
+  dns-filter:
+    type: http
+    behavior: domain
+    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/dns.txt"
+    path: ./ruleset/dns-filter.yaml
+    interval: 86400
+    proxy: PROXY                     # DNS规则下载走代理分组
+    proxy-respect-rules: true        # 下载请求遵循全局分流策略
+    lazy: true                       # 后台异步加载 启动不卡顿 支持后端面板手动刷新拉取
+    dns-respect-rules: true      # 规则解析遵守分流
 # ==============================
 # 最终分流执行顺序规则
 # ==============================================
