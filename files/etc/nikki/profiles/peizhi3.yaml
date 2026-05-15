@@ -20,8 +20,6 @@ ipv6: true
 udp: true
 # 域名匹配严格模式
 find-process-mode: strict
-# 模拟浏览器请求指纹，降低风控
-global-client-fingerprint: chrome
 # TCP长连接保活间隔
 keep-alive: true
 keep-alive-interval: 30
@@ -57,29 +55,46 @@ proxy-providers:
   限量机场:
     type: http
     url: "https://a.bbydy.org/api/bby/client/subscribe?token=11937c3ea30b86b8f0a904c9ebff5fbbd8"
-    interval: 3600          # 1小时自动更新订阅
+    timeout: 10000     # 单次10秒超时，到点直接放弃，不拖
+    interval: 7200          # 2小时自动更新订阅
     user-agent: "Clash/1.18.0"
+    retries: 3          # 最多重试 3 次
+    retry-delay: 60000  # 重试等待 60 秒，不疯狂刷屏
+    async: false        # 关闭异步并行加载 → 改成串行逐个加载
+
 
   # 主力高速节点组1
   不限量机场:
     type: http
     url: "https://8.217.98.112:1000/config?token=30f9f938c55cd934cb34c124bad0ff0f85"
-    interval: 3600
+    timeout: 10000     # 单次10秒超时，到点直接放弃，不拖
+    interval: 7200
     user-agent: "Clash/1.18.0"
+    retries: 3          # 最多重试 3 次
+    retry-delay: 60000  # 重试等待 60 秒，不疯狂刷屏
+    async: false        # 关闭异步并行加载 → 改成串行逐个加载
 
   # 主力高速节点组2
   不限量机场2:
     type: http
     url: "https://nodesfree.github.io/clashnode/clash.yaml"
-    interval: 3600
+    timeout: 10000     # 单次10秒超时，到点直接放弃，不拖
+    interval: 7200
     user-agent: "Clash/1.18.0"
+    retries: 3          # 最多重试 3 次
+    retry-delay: 60000  # 重试等待 60 秒，不疯狂刷屏
+    async: false        # 关闭异步并行加载 → 改成串行逐个加载
 
   # 主力高速节点组3
   不限量机场3:
     type: http
     url: "https://IwhkWO.mcsslk.xyz/162def6d0f4d8bab04ccc61560092683"
-    interval: 3600
+    timeout: 10000     # 单次10秒超时，到点直接放弃，不拖
+    interval: 7200
     user-agent: "Clash/1.18.0"
+    retries: 3          # 最多重试 3 次
+    retry-delay: 60000  # 重试等待 60 秒，不疯狂刷屏
+    async: false        # 关闭异步并行加载 → 改成串行逐个加载
 
 # ==============================
 # 分流策略组
@@ -87,7 +102,13 @@ proxy-providers:
 proxy-groups:
   # 自动选延迟最低节点
   - name: 不限量合集
-    type: url-test
+    type: url-test                                                  # 测速
+    url: http://www.gstatic.com/generate_204     # 测速目标地址
+    interval: 300                                                  # 测速间隔秒
+    timeout: 5000                                               # 单次测速超时5秒（和max-delay配合）
+    max-delay: 3000                                          # 超过2秒直接淘汰，快节点优先、慢节点不堆
+    tolerance: 200                                             # 优选节点不切换最低延迟
+    lazy: true                                                    # 无流量时不测速
     use:
       - 不限量机场
       - 不限量机场2
@@ -96,7 +117,13 @@ proxy-groups:
 
   # 故障备用节点
   - name: 限量兜底
-    type: url-test
+    type: url-test                                                    # 测速
+    url: http://www.gstatic.com/generate_204       # 测速目标地址
+    interval: 300                                                    # 测速间隔秒
+    timeout: 5000                                                 # 单次测速超时5秒（和max-delay配合）
+    max-delay: 3000                                            # 超过2秒直接淘汰，快节点优先、慢节点不堆
+    tolerance: 200                                               # 优选节点不切换最低延迟
+    lazy: true                                                      # 无流量时不测速
     use:
       - 限量机场
 
@@ -107,8 +134,9 @@ proxy-groups:
     proxies:
       - 不限量合集
       - 限量兜底
-    interval: 180
-    idle-timeout: 20
+    interval: 180                                        # 检测连通间隔秒
+    idle-timeout: 20                                  # 超时条件秒
+    client-fingerprint: chrome                   # 模拟浏览器请求指纹，降低风控
 
   # 国内站点分组：手动选择直连/代理
   - name: DOMESTIC
@@ -140,12 +168,12 @@ dns:
   dns-preload: true         # 域名预解析缓存
 # ==============================
   # 调用你拉取的 dns-filter 规则（Fake-IP 白名单生效）
-  fake-ip-filter:
-    - rule-set:dns-filter
+  fake-ip-filter: []
 
   # 开启/关闭Geosite启动全量预加载（解决重启CPU/内存爆满）
   # 优点：重启不卡、不爆内存、低负载运行
   # 缺点：首次访问国内域名极轻微延迟，二次访问恢复极速
+  # true为开机一次性把所有 geosite 域名库全加载进内存
   geosite-preload: true
 
   # 默认国内DNS
@@ -184,6 +212,7 @@ dns:
     "raw.githubusercontent.com": [8.8.8.8]
     "cdn.jsdelivr.net": [1.1.1.1]
     "nodesfree.github.io": [1.1.1.1]
+    "*.telegram.org": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]   # telegramdns解析
     # 自定义白名单站点固定本地解析
     "ipin.io": 223.5.5.5
     "*.ipin.io": 223.5.5.5
@@ -193,91 +222,88 @@ dns:
 
 # ==============================
 # 远程规则订阅库
+# GitHub 官方原生地址
+# 统一 delay-check: 60 秒 → 开机先缓存/节点/测速，再拉规则
+# 全部 lazy: true 延迟懒加载，避免启动卡顿
 # ==============================
 rule-providers:
-  # 广告黑名单规则
+  # 广告黑名单规则：屏蔽广告域名
   reject:
     type: http
     behavior: domain
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/reject.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt"
     path: ./ruleset/reject.yaml
-    interval: 86400 # 24小时更新一次
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 300           # 开机300秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 
-  # 国外网站规则
+  # 国外网站规则：匹配境外域名走代理
   proxy:
     type: http
     behavior: domain
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/proxy.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/proxy.txt"
     path: ./ruleset/proxy.yaml
-    interval: 86400
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 120           # 开机60秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 
-  # 国内网站规则
+  # 国内网站规则：匹配中国大陆域名直连
   direct:
     type: http
     behavior: domain
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/direct.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/direct.txt"
     path: ./ruleset/direct.yaml
-    interval: 86400
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 60           # 开机60秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 
-  # 内网私有地址规则
+  # 内网私有地址规则：匹配私有域名直连
   private:
     type: http
     behavior: domain
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/private.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/private.txt"
     path: ./ruleset/private.yaml
-    interval: 86400
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 240           # 开机60秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 
-  # 局域网IP段规则
+  # 局域网IP段规则：匹配局域网IP直连
   lancidr:
     type: http
     behavior: ipcidr
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/lancidr.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/lancidr.txt"
     path: ./ruleset/lancidr.yaml
-    interval: 86400
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 240           # 开机60秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 
-  # 中国大陆IP段规则
+  # 中国大陆IP段规则：匹配大陆IP直连
   cncidr:
     type: http
     behavior: ipcidr
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/cncidr.txt"
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/cncidr.txt"
     path: ./ruleset/cncidr.yaml
-    interval: 86400
-    proxy: PROXY                 # 规则下载走代理
-    proxy-respect-rules: true    # 规则下载遵守分流
-    lazy: true                   # 启动不卡
-    dns-respect-rules: true      # 规则解析遵守分流
-
-  # DNS分流规则
-  dns-filter:
-    type: http
-    behavior: domain
-    url: "https://raw.gitmirror.com/Loyalsoldier/clash-rules/release/dns.txt"
-    path: ./ruleset/dns-filter.yaml
-    interval: 86400
-    proxy: PROXY                     # DNS规则下载走代理分组
-    proxy-respect-rules: true        # 下载请求遵循全局分流策略
-    lazy: true                       # 后台异步加载 启动不卡顿 支持后端面板手动刷新拉取
-    dns-respect-rules: true      # 规则解析遵守分流
+    interval: 86400          # 24小时更新一次
+    proxy: PROXY              # 规则下载走代理分组
+    proxy-respect-rules: true # 下载请求遵循全局分流
+    lazy: true                # 启动不立即拉取，延迟加载
+    delay-check: 180           # 开机60秒后再拉取此规则
+    dns-respect-rules: true   # 规则解析遵守分流规则
 # ==============================
 # 最终分流执行顺序规则
 # ==============================================
@@ -289,6 +315,8 @@ rules:
  # 白名单网站强制直连【手动白名单网站】不想网站走代理加这里
   - DOMAIN-SUFFIX,ipin.io,DIRECT        
   - DOMAIN,dc.sigmob.cn,DIRECT
+  - IP-CIDR,91.108.0.0/16,PROXY,no-resolve    # telegram强制代理
+  - IP-CIDR,149.154.0.0/16,PROXY,no-resolve  # telegram强制代理
 # ==============================================
   - RULE-SET,private,DIRECT              # 内网地址直连
   - RULE-SET,lancidr,DIRECT              # 局域网IP直连
