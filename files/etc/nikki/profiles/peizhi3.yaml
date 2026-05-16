@@ -106,6 +106,7 @@ proxy-groups:
     max-delay: 3000                                          # 超过2秒直接淘汰，快节点优先、慢节点不堆
     tolerance: 200                                             # 优选节点不切换最低延迟
     lazy: true                                                    # 无流量时不测速
+    exclude-filter: "(到期|过期|试用|测试|体验)"                     # 不使用节点词汇    
     use:
       - 不限量机场
       - 不限量机场2
@@ -121,6 +122,7 @@ proxy-groups:
     max-delay: 3000                                            # 超过2秒直接淘汰，快节点优先、慢节点不堆
     tolerance: 200                                               # 优选节点不切换最低延迟
     lazy: true                                                      # 无流量时不测速
+    exclude-filter: "(到期|过期|试用|测试|体验)"                     # 不使用节点词汇    
     use:
       - 限量机场
 
