@@ -1,5 +1,8 @@
 # ==============================
 #  Nikki 最终自用完整配置
+# 开启仅核心模式在160行dns段中开启
+# 出现网站不能访问未被代理请在360行rules加上该网址
+# 出现网站跳转反诈宣传禁止访问/dns污染请在218行加网址
 # 模式：策略路由(仿OpenClash) + 开启Fake-IP + IPv6全开
 # 规则外流量全部直连，游戏/本地软件不受影响
 # ==============================
@@ -151,6 +154,14 @@ proxy-groups:
 # ==============================
 dns:
   enable: true
+# ==============================
+# 插件仅核心运行模式
+# listen端口地址改为0.0.0.0:5353即可
+# 非仅核心模式改回53
+# 仅核心模式会导致dns分配失效 可能出现外网dns污染 可能出现部分网页提示该网站禁止访问
+# 解决方案 在下面dns解析白名单加上不能访问的网站 rules白名单加上网站
+# 日常建议不开仅核心
+# ==============================
   listen: 0.0.0.0:53
   ipv6: true
 # ==============================
@@ -199,9 +210,9 @@ dns:
     check: true  #解析失败自动切境外DNS，解决国内被墙/污染域名
 
   # ==============================================
-  # 【Fake-IP解析白名单】
+  # 【Fake-IP-DNS解析白名单】
   # 作用：域名不走虚拟假IP，强制真实DNS解析
-  # 解决开Fake-IP后网站打不开、解析失败问题
+  # 解决开C后网站打不开、解析失败问题
   # 新增打不开的域名直接在这里添加
   # ==============================================
   nameserver-policy:
@@ -213,13 +224,36 @@ dns:
     "cdn.jsdelivr.net": [1.1.1.1]
     "nodesfree.github.io": [1.1.1.1]
     "*.telegram.org": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]   # telegramdns解析
+    # Telegram全系防污染
+    "*.telegram.me": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    "*.t.me": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    # GitHub全系解决时好时坏DNS污染
+    "*.github.com": ["https://dns.google/dns-query", "8.8.8.8"]
+    "*.githubusercontent.com": ["https://dns.google/dns-query", "8.8.8.8"]
+    "*.github.io": ["https://dns.google/dns-query", "8.8.8.8"]
+    "gist.githubusercontent.com": ["https://dns.google/dns-query", "8.8.8.8"]
+    # Google全家防污染
+    "*.google.com": ["https://dns.google/dns-query", "8.8.8.8"]
+    "*.googleapis.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    "*.gstatic.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    # 推特X平台
+    "*.x.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    "*.twitter.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    # 社交语音平台
+    "*.discord.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    "*.discord.gg": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    # 常用开源CDN站点
+    "*.jsdelivr.net": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    "*.cdnjs.cloudflare.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+# ==============================
     # 自定义白名单站点固定本地解析
-    "ipin.io": 223.5.5.5
-    "*.ipin.io": 223.5.5.5
-    # 格式示例
+    # 格式示例 前面网址 后面解析ip
     # "xxx.com": 223.5.5.5
     # "*.xxx.com": 223.5.5.5
-
+# ==============================
+    # 自用dns解析白名单
+    "ipin.io": 223.5.5.5
+    "*.ipin.io": 223.5.5.5
 # ==============================
 # 远程规则订阅库
 # GitHub 官方原生地址
@@ -307,16 +341,33 @@ rule-providers:
 # ==============================
 # 最终分流执行顺序规则
 # ==============================================
-# 【路由强制白名单】
+# 【rules路由强制白名单】
 # 作用：强制该域名全程直连，不走任何代理
 # 和上面DNS白名单搭配使用，完美兼容Fake-IP
 # ==============================================
 rules:
- # 白名单网站强制直连【手动白名单网站】不想网站走代理加这里
-  - DOMAIN-SUFFIX,ipin.io,DIRECT        
-  - DOMAIN,dc.sigmob.cn,DIRECT
+ # 白名单网站强制直连【手动白名单网站】不想网站走代理/强制走代理加这里
   - IP-CIDR,91.108.0.0/16,PROXY,no-resolve    # telegram强制代理
   - IP-CIDR,149.154.0.0/16,PROXY,no-resolve  # telegram强制代理
+  # Telegram网页域名强制不走本地解析直扔代理
+  - DOMAIN-SUFFIX,telegram.org,PROXY,no-resolve
+  - DOMAIN-SUFFIX,telegram.me,PROXY,no-resolve
+  - DOMAIN-SUFFIX,t.me,PROXY,no-resolve
+  # GitHub全系强制走代理杜绝间歇性打不开
+  - DOMAIN-SUFFIX,github.com,PROXY,no-resolve
+  - DOMAIN-SUFFIX,githubusercontent.com,PROXY,no-resolve
+  - DOMAIN-SUFFIX,github.io,PROXY,no-resolve
+  # Google全系强制代理
+  - DOMAIN-SUFFIX,google.com,PROXY,no-resolve
+  - DOMAIN-SUFFIX,gstatic.com,PROXY,no-resolve
+  # 推特X平台
+  - DOMAIN-SUFFIX,twitter.com,PROXY,no-resolve
+  - DOMAIN-SUFFIX,x.com,PROXY,no-resolve
+# ==============================================
+ # 白名单网站强制直连【手动白名单网站】不想网站走代理/强制走代理加这里
+# 自用
+  - DOMAIN-SUFFIX,ipin.io,DIRECT        # ip网站直连
+  - DOMAIN,dc.sigmob.cn,DIRECT         # 单独允许一个广告 看广告领取会员用的
 # ==============================================
   - RULE-SET,private,DIRECT              # 内网地址直连
   - RULE-SET,lancidr,DIRECT              # 局域网IP直连
