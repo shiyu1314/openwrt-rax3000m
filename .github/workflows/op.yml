@@ -17,7 +17,7 @@ on:
       CUSTOM_PLUGINS:
         description: '自定义插件名称，用空格分隔'
         required: false
-        default: 'luci-theme-aurora luci-app-ttyd luci-app-diskman luci-app-irqbalance luci-app-filemanager luci-app-autoreboot luci-app-nikki'
+        default: 'luci-app-nikki luci-theme-aurora luci-app-ttyd luci-app-diskman luci-app-irqbalance luci-app-filemanager luci-app-autoreboot'
         type: string
 
 env:
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        device: ["rax3000m-nand"]
+        device: ["rax3000m-nand"]  # 只编译这一个
         source: ["openwrt"]
         include:
           - device: "rax3000m-nand"
@@ -50,8 +50,8 @@ jobs:
         sudo apt-get -y purge firefox clang* ghc* google* llvm* mono* mongo* mysql* php*
         sudo apt-get -y autoremove --purge
         sudo apt-get clean
-        sudo rm -rf /etc/mysql /etc/php /usr/lib/jvm /usr/libexec/docker /usr/local /usr/src/* /var/lib/docker /var/gems /var/lib/mysql /var/snap /etc/skel /opt/{microsoft,az,hostedtoolcache,cni,mssql-tools,pipx} /usr/share/{az*,dotnet,swift,miniconda,gradle*,java,kotlinc,ri,sbt} /root/{.sbt,.local,.npm}
-        sudo sed -i '/NVM_DIR/d;/skel/d' /root/.bashrc
+        sudo rm -rf /etc/mysql /etc/php /usr/lib/jvm /usr/libexec/docker /usr/local /usr/src/* /var/lib/docker /var/lib/gems /var/lib/mysql /var/lib/snapd /etc/skel /opt/{microsoft,az,hostedtoolcache,cni,mssql-tools,pipx} /usr/share/{az*,dotnet,swift,miniconda,gradle*,java,kotlinc,ri,sbt} /root/{.sbt,.local,.npm}
+        sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
         rm -rf ~/{.cargo,.dotnet,.rustup}
         df -Th
 
@@ -62,11 +62,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y tar build-essential flex bison cmake g++ gawk gcc-multilib g++-multilib gettext git libfuse-dev libncurses5-dev libssl-dev python3 python3-pip python3-ply python3-distutils python3-pyelftools rsync unzip zlib1g-dev file wget subversion patch upx-ucl autoconf automake curl asciidoc binutils bzip2 lib32gcc-s1 libc6-dev-i386 uglifyjs msmtp texinfo libreadline-dev libglib2.0-dev xmlto libelf-dev libtool autopoint antlr3 gperf ccache swig coreutils haveged scons libpython3-dev rename qemu-utils
         sudo apt-get clean
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'noreply@github.com'
-        timedatectl set-timezone Asia/Shanghai
-        mkdir -p /workdir
-        chown $USER:$GROUPS /workdir
+        git config --global user.name 'GitHub Actions' && git config --global user.email 'noreply@github.com'
+        sudo timedatectl set-timezone 'Asia/Shanghai'
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
         df -Th
 
     - name: 设置环境变量
@@ -84,7 +83,7 @@ jobs:
     - name: 克隆源代码
       working-directory: /workdir
       run: |
-        df -hT
+        df -hT $PWD
         git clone $REPO_URL $SOURCE_NAME
         ln -sf /workdir/$SOURCE_NAME $GITHUB_WORKSPACE/$SOURCE_NAME
         
@@ -95,17 +94,21 @@ jobs:
           openwrt-25.12)
             _release_tag=$(git tag --sort=taggerdate --list 'v25.*' | tail -1)
             git checkout $_release_tag
+            _prerelease=false
             ;;
           *)
-            echo "Can't get local/upstream branch/tags"
+            echo "Can't get local/upstream's branch/tags"
             ;;
         esac
         echo "release_tag=$_release_tag" >> $GITHUB_ENV  
+
+    # ========= 缓存已关闭（完全禁用） =========
 
     - name: patch修补
       run: |
         set -x
         cd $SOURCE_NAME
+        
         ./scripts/feeds update -a
         cd .. 
         [ -e patch ] && cp -rf patch/diy/*.patch $SOURCE_NAME
@@ -120,19 +123,20 @@ jobs:
         [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
         [ -e patch ] && cp -rf patch/nginx/uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
 
-    - name: 清空GO缓存与编译环境
+    # ========= 清理 Go 缓存（解决nikki报错） =========
+    - name: 清理 Go 编译缓存
       run: |
         cd $SOURCE_NAME
-        rm -rf tmp build_dir staging_dir dl
-        make clean
-        make dirclean
+        rm -rf tmp/ build_dir/ dl/ staging_dir/host/go*
+        find . -name "go.mod" -o -name "go.sum" | xargs rm -f 2>/dev/null || true
 
     - name: 加载自定义配置
       run: |
         [ -e files ] && mv files $SOURCE_NAME/files
         cat <<EOF >>$SOURCE_NAME/.config
         CONFIG_TARGET_mediatek=y
-        CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m-nand=y
+        CONFIG_TARGET_mediatek_filogic=y
+        ${{ matrix.config }}
         EOF
         
         [ -e config ] && cat config/config-common >> $SOURCE_NAME/.config
@@ -145,6 +149,7 @@ jobs:
         done
     
     - name: 下载编译依赖
+      id: package
       run: |
         cd $SOURCE_NAME
         make defconfig
@@ -153,14 +158,28 @@ jobs:
         find dl -size -1024c -exec rm -f {} \;
     
     - name: 编译源码
+      id: compile
       run: |
         cd $SOURCE_NAME
-        make -j$(nproc) || make -j1 V=s
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+
+    - name: 查看磁盘使用情况
+      if: (!cancelled())
+      run: df -hT
 
     - name: 整理文件
+      id: organize
       run: |
         cd $SOURCE_NAME/bin/targets/*/*
-        rm -rf packages *.buildinfo profiles.json *.manifest *bl2.bin *kernel.bin *.sha sha256sums
+        rm -rf packages
+        rm -rf *.buildinfo
+        rm -rf profiles.json
+        rm -rf *.manifest
+        rm -rf *bl2.bin
+        rm -rf *kernel.bin
+        rm -rf *.sha
+        rm -rf sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
 
     - name: 上传固件到Releases
