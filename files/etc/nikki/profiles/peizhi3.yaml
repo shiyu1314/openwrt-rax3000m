@@ -148,6 +148,16 @@ proxy-groups:
       - DIRECT      # 需要时手动切直连
       - PROXY      #需要时手动切代理
       - REJECT     #需要时手动切禁止
+      
+  # 其它站点分组：手动选择直连/代理
+  - name: OTHER
+    type: select
+    proxies:
+      - DIRECT      # 需要时手动切直连
+      - PROXY      #需要时手动切代理
+      - REJECT     #需要时手动切禁止
+
+      
 # ==============================
 # DNS 域名解析配置 【核心】
 # enhanced-mode: fake-ip 开启防劫持、广告拦截、快速分流
@@ -383,4 +393,4 @@ rules:
 # IP精准分流
   - GEOIP,CN,DOMESTIC                      # 【最高优先级2】只要是中国大陆IP → 国内切换组
   - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
-  - MATCH,DIRECT                         # 所有未匹配到的流量【全部直连】
+  - MATCH,OTHER                         # 所有未匹配到的流量进other组【全部直连】
