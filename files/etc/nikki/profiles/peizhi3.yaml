@@ -22,7 +22,7 @@ ipv6: true
 # 开启UDP转发(游戏/语音/流媒体必备)
 udp: true
 # 域名匹配严格模式
-find-process-mode: strict
+find-process-mode: off
 # TCP长连接保活间隔
 keep-alive: true
 keep-alive-interval: 30
