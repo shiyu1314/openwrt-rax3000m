@@ -381,5 +381,6 @@ rules:
   - GEOIP,CN,DOMESTIC                      # 【最高优先级2】只要是中国大陆IP → 国内切换组
   - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
 routing:
+  complete-fallback: true       # 强制遍历完所有规则条目，走完 IP 规则，最后再兜底
   default-action: direct        # 无匹配规则流量默认优先本地直连
   default-proxy: PROXY          # 直连访问失败自动切换至外网代理组
