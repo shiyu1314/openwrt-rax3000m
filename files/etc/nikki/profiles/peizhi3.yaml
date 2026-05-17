@@ -161,6 +161,7 @@ dns:
 # ==============================
   listen: 0.0.0.0:53
   ipv6: true
+  prefer-ipv6: true   #优先解析ipv6
 # ==============================
 # 网站解析方法 
 # 开启fakeip模式取消注释即可  慢但准确
@@ -222,8 +223,8 @@ dns:
     "raw.githubusercontent.com": [8.8.8.8]
     "cdn.jsdelivr.net": [1.1.1.1]
     "nodesfree.github.io": [1.1.1.1]
-    "*.telegram.org": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]   # telegramdns解析
-    # Telegram全系防污染
+   # Telegram全系防污染
+    "*.telegram.org": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
     "*.telegram.me": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
     "*.t.me": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
     # GitHub全系解决时好时坏DNS污染
@@ -244,6 +245,102 @@ dns:
     # 常用开源CDN站点
     "*.jsdelivr.net": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
     "*.cdnjs.cloudflare.com": ["https://cloudflare-dns.com/dns-query", "1.1.1.1"]
+    # YouTube 全套强制境外DoH 稳出IPv6
+    "*.youtube.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.youtu.be": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.googlevideo.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.ytimg.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.youtube-nocookie.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # Facebook/Instagram 全系强制境外 DoH 拿 IPv6
+    "*.facebook.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.fbcdn.net": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.fbsbx.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.fbworkmail.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.instagram.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.cdninstagram.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.meta.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # Cloudflare 全站
+    "*.cloudflare.com": ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"]
+    # 直播平台 Twitch
+    "*.twitch.tv": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.ttvnw.net": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 音乐 Spotify
+    "*.spotify.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 微软全系
+    "*.microsoft.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.outlook.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.live.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 维基百科
+    "*.wikipedia.org": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 亚马逊
+    "*.amazon.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 苹果官网/服务
+    "*.apple.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 奈飞 Netflix
+    "*.netflix.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.nflxvideo.net": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 国际论坛 Reddit
+    "*.reddit.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 开源社区 StackOverflow
+    "*.stackoverflow.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 浏览器官网 Mozilla
+    "*.mozilla.org": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 雅虎
+    "*.yahoo.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 领英职场
+    "*.linkedin.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 必应搜索
+    "*.bing.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 迪士尼流媒体
+    "*.disneyplus.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 葫芦视频Hulu
+    "*.hulu.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 易贝电商
+    "*.ebay.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # Paypal支付
+    "*.paypal.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 游戏平台 Steam
+    "*.steampowered.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.steamcommunity.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 索尼
+    "*.sony.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 英伟达
+    "*.nvidia.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 开源源码 GitLab
+    "*.gitlab.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 网盘 OneDrive
+    "*.onedrive.live.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 绘图设计 Behance
+    "*.behance.net": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 影视资讯 IMDB
+    "*.imdb.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 游戏类
+    "*.epicgames.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.origin.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.riotgames.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.playstation.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 办公工具
+    "*.zoom.us": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.slack.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.notion.so": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.canva.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 资讯媒体
+    "*.cnn.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.bbc.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.nytimes.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 学习技术
+    "*.udemy.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.coursera.org": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.linux.org": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 网盘云服务
+    "*.dropbox.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.mega.nz": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 出行生活
+    "*.uber.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.airbnb.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    # 数码测评
+    "*.theverge.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
+    "*.gsmarena.com": ["https://dns.google/dns-query","https://cloudflare-dns.com/dns-query"]
 # ==============================
     # 自定义白名单站点固定本地解析
     # 格式示例 前面网址 后面解析ip
