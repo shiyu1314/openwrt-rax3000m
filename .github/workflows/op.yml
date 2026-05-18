@@ -114,9 +114,7 @@ jobs:
         esac
         echo "release_tag=$_release_tag" >> $GITHUB_ENV  
         
-    # ======================
-    # 【已禁用】staging_dir 工具链缓存（仅注释，未删除）
-    # ======================
+    # 【已禁用】staging_dir 缓存，全新编译不读取旧缓存
     #- name: 取回缓存 staging_dir
     #  uses: actions/cache@v5
     #  with:
@@ -145,15 +143,11 @@ jobs:
         [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
         [ -e patch ] && cp -rf patch/nginx/uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
 
-    # ======================
-    # 【保留】清理 OpenWrt 内部 Go 编译缓存（专门修复 nikki）
-    # ======================
-    - name: 清理 OpenWrt 内部 Go 缓存
+    # 清理 Go 编译缓存（你自己的原版代码）
+    - name: 清理 Go 编译缓存
       run: |
-        echo "清理 OpenWrt 内部 Go 缓存..."
         cd $SOURCE_NAME
-        rm -rf tmp/ build_dir/ staging_dir/host/go-* dl/go-*
-        find . -type d -name "*go*cache*" | xargs rm -rf 2>/dev/null || true
+        rm -rf tmp/ build_dir/ dl/ staging_dir/host/go*
         find . -name "go.mod" -o -name "go.sum" | xargs rm -f 2>/dev/null || true
 
     - name: 加载自定义配置
