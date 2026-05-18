@@ -447,6 +447,19 @@ rule-providers:
     lazy: true                # 启动不立即拉取，延迟加载
     delay-check: 180           # 开机60秒后再拉取此规则
     dns-respect-rules: true   # 规则解析遵守分流规则
+
+  # 中国大陆域名规则集 - 匹配国内主流域名走国内分组
+  cn:
+    behavior: domain
+    interval: 86400
+    path: ./provider/rule-set/cn_domain.yaml
+    type: http
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.yaml"
+    proxy: DIRECT                # 拉取国内规则直连下载，不走代理
+    proxy-respect-rules: true    # 遵循全局分流策略
+    lazy: true                   # 延迟懒加载，减少启动占用
+    delay-check: 360              # 开机360秒后再自动更新规则
+    dns-respect-rules: true      # 域名解析遵循分流规则
 # ==============================
 # 全局顶级：geox数据库（强制代理拉取）
 # ==============================
@@ -519,12 +532,12 @@ rules:
   - GEOSITE,cn,DOMESTIC                    # 所有可识别大陆域名，统一归入国内分组  
 # ==============================================
 # IP精准分流
-- GEOIP,private,DIRECT,no-resolve       # 私有内网IP直连
-- GEOIP,telegram,PROXY                   # TG专属IP强制代理
-- GEOIP,JP,PROXY                         # 日本IP走代理
-- DST-PORT,80/8080/443/8443,PROXY        # 常用网页端口走代理
-- GEOIP,CN,DOMESTIC                      # 中国大陆IP → 国内组
-- GEOIP,!CN,PROXY                        # 境外IP → 代理组  
+  - GEOIP,private,DIRECT,no-resolve       # 私有内网IP直连
+  - GEOIP,telegram,PROXY                   # TG专属IP强制代理
+  - GEOIP,JP,PROXY                         # 日本IP走代理
+  - DST-PORT,80/8080/443/8443,PROXY        # 常用网页端口走代理
+  - GEOIP,CN,DOMESTIC                      # 中国大陆IP → 国内组
+  - GEOIP,!CN,PROXY                        # 境外IP → 代理组  
 routing:
   complete-fallback: false       # 强制遍历完所有规则条目，命中规则停止
   default-action: direct        # 无匹配规则流量默认优先本地直连
