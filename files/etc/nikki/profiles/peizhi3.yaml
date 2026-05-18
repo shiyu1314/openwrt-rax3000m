@@ -488,26 +488,32 @@ rules:
   - RULE-SET,proxy,PROXY                 # 国外网站走代理
   - RULE-SET,direct,DOMESTIC             # 国内网站走国内组
 # ==============================================
-  #  GEOSITE域名备用分流
-  - GEOSITE,category-ads-all,REJECT
-  - GEOSITE,private,DIRECT
-  - GEOSITE,onedrive,DIRECT
-  - GEOSITE,microsoft@cn,DIRECT
-  - GEOSITE,apple-cn,DIRECT
-  - GEOSITE,steam@cn,DIRECT
-  - GEOSITE,category-games@cn,DIRECT
-  - GEOSITE,biliintl,PROXY
-  - GEOSITE,youtube,PROXY
-  - GEOSITE,google,PROXY
-  - GEOSITE,twitter,PROXY
-  - GEOSITE,pixiv,PROXY
-  - GEOSITE,category-scholar-!cn,PROXY
-  - GEOSITE,geolocation-!cn,PROXY
-  - GEOSITE,cn,DIRECT  
+#  GEOSITE域名备用分流【域名层二次兜底补漏】
+# 前置手写规则+订阅规则未命中时，进入此层域名库批量匹配分流
+# ==============================================
+  - GEOSITE,category-ads-all,REJECT        # 全局所有广告域名统一拦截屏蔽
+  - GEOSITE,private,DIRECT                 # 私有内网域名强制本地直连不走代理
+  - GEOSITE,onedrive,DOMESTIC              # OneDrive国内服务走国内分组
+  - GEOSITE,microsoft@cn,DOMESTIC          # 微软国内服务走国内分组
+  - GEOSITE,apple-cn,DOMESTIC              # 苹果国内生态服务走国内分组
+  - GEOSITE,steam@cn,DOMESTIC              # Steam国区相关走国内分组
+  - GEOSITE,category-games@cn,DOMESTIC     # 国产游戏相关域名统一走国内分组
+  - GEOSITE,biliintl,PROXY                 # B站国际版强制走代理
+  - GEOSITE,youtube,PROXY                  # 油管全系域名批量走代理
+  - GEOSITE,google,PROXY                   # 谷歌全系域名批量走代理
+  - GEOSITE,twitter,PROXY                  # 推特X平台域名批量走代理
+  - GEOSITE,pixiv,PROXY                    # Pixiv插画站强制走代理
+  - GEOSITE,category-scholar-!cn,PROXY     # 海外学术科研类域名全部走代理
+  - GEOSITE,geolocation-!cn,PROXY          # 非大陆通用境外域名统一走代理
+  - GEOSITE,cn,DOMESTIC                    # 所有可识别大陆域名，统一归入国内分组  
 # ==============================================
 # IP精准分流
-  - GEOIP,CN,DOMESTIC                      # 【最高优先级2】只要是中国大陆IP → 国内切换组
-  - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
+- GEOIP,private,DIRECT,no-resolve       # 私有内网IP直连
+- GEOIP,telegram,PROXY                   # TG专属IP强制代理
+- GEOIP,JP,PROXY                         # 日本IP走代理
+- DST-PORT,80/8080/443/8443,PROXY        # 常用网页端口走代理
+- GEOIP,CN,DOMESTIC                      # 中国大陆IP → 国内组
+- GEOIP,!CN,PROXY                        # 境外IP → 代理组  
 routing:
   complete-fallback: false       # 强制遍历完所有规则条目，命中规则停止
   default-action: direct        # 无匹配规则流量默认优先本地直连
