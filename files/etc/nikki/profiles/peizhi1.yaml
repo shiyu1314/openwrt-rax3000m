@@ -6,7 +6,7 @@
 #  已连通外网使用代理地址  未连通外网使用直连地址 直连地址可能因为dns污染无法下载 可尝试手机下载然后上传
 #  直连地址https://cdn.jsdelivr.net/gh/evol5201314/openwrt-rax3000m-2512@master/files/etc/nikki/profiles/peizhi1.yaml
 #  代理地址https://raw.githubusercontent.com/evol5201314/openwrt-rax3000m-2512/master/files/etc/nikki/profiles/peizhi1.yaml
-
+#  最新更新时间2026/05/18-1
 # ==============================
 #  Nikki 完整配置 开启ipv6+广告过滤+故障转移+多机场
 # 开启仅核心模式在160行dns段中开启
