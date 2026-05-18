@@ -29,11 +29,23 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        device: ["rax3000m-nand"]  # 只编译这一个
+        device: ["rax3000m", "rax3000me", "rax3000m-emmc", "rax3000m-nand", "rax3000m-256m-nand", "xr30-emmc", "xr30-nand"]
         source: ["openwrt"]
         include:
+          - device: "rax3000m"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m=y"
+          - device: "rax3000me"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000me=y"
+          - device: "rax3000m-emmc"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y"
           - device: "rax3000m-nand"
             config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m-nand=y"
+          - device: "rax3000m-256m-nand"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m-256m-nand=y"
+          - device: "xr30-nand"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_xr30-nand=y"
+          - device: "xr30-emmc"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_xr30-emmc=y"
 
     steps: 
     - name: 检查分支
@@ -101,9 +113,19 @@ jobs:
             ;;
         esac
         echo "release_tag=$_release_tag" >> $GITHUB_ENV  
-
-    # ========= 缓存已关闭（完全禁用） =========
-
+        
+    # ======================
+    # 【已禁用】staging_dir 工具链缓存（仅注释，未删除）
+    # ======================
+    #- name: 取回缓存 staging_dir
+    #  uses: actions/cache@v5
+    #  with:
+    #    path: |
+    #      ${{ matrix.source }}/staging_dir
+    #    key: ${{ matrix.source }}-toolchain-cache
+    #    restore-keys: |
+    #      ${{ matrix.source }}-toolchain-cache
+            
     - name: patch修补
       run: |
         set -x
@@ -123,11 +145,15 @@ jobs:
         [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
         [ -e patch ] && cp -rf patch/nginx/uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
 
-    # ========= 清理 Go 缓存（解决nikki报错） =========
-    - name: 清理 Go 编译缓存
+    # ======================
+    # 【保留】清理 OpenWrt 内部 Go 编译缓存（专门修复 nikki）
+    # ======================
+    - name: 清理 OpenWrt 内部 Go 缓存
       run: |
+        echo "清理 OpenWrt 内部 Go 缓存..."
         cd $SOURCE_NAME
-        rm -rf tmp/ build_dir/ dl/ staging_dir/host/go*
+        rm -rf tmp/ build_dir/ staging_dir/host/go-* dl/go-*
+        find . -type d -name "*go*cache*" | xargs rm -rf 2>/dev/null || true
         find . -name "go.mod" -o -name "go.sum" | xargs rm -f 2>/dev/null || true
 
     - name: 加载自定义配置
