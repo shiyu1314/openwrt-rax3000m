@@ -15,6 +15,8 @@ allow-lan: true
 bind-address: 0.0.0.0
 # 运行模式：按规则分流
 mode: rule
+# 启用geoip/geosite数据库模式
+geodata-mode: true
 # 日志级别 error只输出错误，干净不刷屏
 log-level: error
 # 开启IPv6支持
@@ -434,6 +436,17 @@ rule-providers:
     lazy: true                # 启动不立即拉取，延迟加载
     delay-check: 180           # 开机60秒后再拉取此规则
     dns-respect-rules: true   # 规则解析遵守分流规则
+# ==============================
+# 全局顶级：geox数据库（强制代理拉取）
+# ==============================
+geox-url:
+  geoip: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geoip.metadb
+  geosite: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/release/geosite.metadb
+  proxy: PROXY                 # 规则下载走代理分组
+  proxy-respect-rules: true    # 下载请求遵循全局分流
+  lazy: true                   # 启动不立即拉取，延迟加载
+  delay-check: 600             # 开机600秒后再拉取此规则
+  dns-respect-rules: true      # 规则解析遵守分流规则
 # ==============================
 # 最终分流执行顺序规则
 # ==============================================
