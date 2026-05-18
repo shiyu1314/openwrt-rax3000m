@@ -471,13 +471,31 @@ rules:
   - DOMAIN-SUFFIX,local,DIRECT      # 系统网络禁止代理
   - RULE-SET,reject,REJECT               # 拦截所有广告域名
 # ==============================================
+  #  订阅规则分流
   - RULE-SET,proxy,PROXY                 # 国外网站走代理
   - RULE-SET,direct,DOMESTIC             # 国内网站走国内组
+# ==============================================
+  #  GEOSITE域名备用分流
+  - GEOSITE,category-ads-all,REJECT
+  - GEOSITE,private,DIRECT
+  - GEOSITE,onedrive,DIRECT
+  - GEOSITE,microsoft@cn,DIRECT
+  - GEOSITE,apple-cn,DIRECT
+  - GEOSITE,steam@cn,DIRECT
+  - GEOSITE,category-games@cn,DIRECT
+  - GEOSITE,biliintl,PROXY
+  - GEOSITE,youtube,PROXY
+  - GEOSITE,google,PROXY
+  - GEOSITE,twitter,PROXY
+  - GEOSITE,pixiv,PROXY
+  - GEOSITE,category-scholar-!cn,PROXY
+  - GEOSITE,geolocation-!cn,PROXY
+  - GEOSITE,cn,DIRECT  
 # ==============================================
 # IP精准分流
   - GEOIP,CN,DOMESTIC                      # 【最高优先级2】只要是中国大陆IP → 国内切换组
   - GEOIP,!CN,PROXY                     # 【最高优先级3】剩下所有（境外IP）→ 全部强制走代理
 routing:
-  complete-fallback: true       # 强制遍历完所有规则条目，走完 IP 规则，最后再兜底
+  complete-fallback: false       # 强制遍历完所有规则条目，命中规则停止
   default-action: direct        # 无匹配规则流量默认优先本地直连
   default-proxy: PROXY          # 直连访问失败自动切换至外网代理组
