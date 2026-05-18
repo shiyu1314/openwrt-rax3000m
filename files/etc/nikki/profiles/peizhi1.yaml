@@ -4,9 +4,9 @@
 #  选择配置文件 切换至编辑界面 选择配置文件 编辑 将60行机场地址更改为你的机场订阅地址  保存后 勾选配置 启用插件 即可
 #  自定义修改配置文件后 请全选粘贴至其他名称配置文件名 防止远程订阅覆盖，举例 创建peizhi2文件 将peizhi1文件全选粘贴进去 使用peizhi2文件开启插件
 #  已连通外网使用代理地址  未连通外网使用直连地址 直连地址可能因为dns污染无法下载 可尝试手机下载然后上传
-#  代理地址https://raw.githubusercontent.com/evol5201314/openwrt-rax3000m-2512/master/files/etc/nikki/profiles/peizhi1.yaml
-#  直连地址https://cdn.jsdelivr.net/gh/evol5201314/openwrt-rax3000m-2512@master/files/etc/nikki/profiles/peizhi1.yaml
-#  直连地址https://ghproxy.net/https://raw.githubusercontent.com/evol5201314/openwrt-rax3000m-2512/master/files/etc/nikki/profiles/peizhi1.yaml
+#  代理地址https://raw.githubusercontent.com/evol5201314/openwrt-nikki-rax3000m/master/files/etc/nikki/profiles/peizhi1.yaml
+#  直连地址https://cdn.jsdelivr.net/gh/evol5201314/openwrt-nikki-rax3000m@master/files/etc/nikki/profiles/peizhi1.yaml
+#  直连地址https://ghproxy.net/https://raw.githubusercontent.com/evol5201314/openwrt-nikki-rax3000m/master/files/etc/nikki/profiles/peizhi1.yaml
 #  最新更新时间2026/05/18-1
 # ==============================
 #  Nikki 完整配置 开启ipv6+广告过滤+故障转移+多机场
