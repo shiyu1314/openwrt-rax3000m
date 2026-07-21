@@ -121,7 +121,9 @@ jobs:
       run: |
         set -x
         cd $SOURCE_NAME
-        find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
+        if [ -d "./staging_dir/" ]; then
+          find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
+        fi
         ./scripts/feeds update -a
         cd .. 
         [ -e patch ] && cp -rf patch/diy/*.patch $SOURCE_NAME
