@@ -6,17 +6,31 @@ permissions:
 on:
   repository_dispatch:
   workflow_dispatch:
-    inputs:             
+    inputs:
+      BUILD_TARGET:
+        description: '选择编译机型'
+        required: true
+        default: '全部'
+        type: choice
+        options:
+          - 全部
+          - rax3000m-openwrt
+          - rax3000me-openwrt
+          - rax3000m-emmc-openwrt
+          - rax3000m-nand-openwrt
+          - rax3000m-256m-nand-openwrt
+          - xr30-emmc-openwrt
+          - xr30-nand-openwrt
       OP_IP:
-        description: '静态IP地址'     
+        description: '静态IP地址'
         required: false
-        default: '192.168.2.1' 
+        default: '192.168.2.1'
         type: string
       OP_author:
-        description: '定制作者'     
+        description: '定制作者'
         required: false
-        default: 'shiyu1314' 
-        type: string    
+        default: 'shiyu1314'
+        type: string
       CUSTOM_PLUGINS:
         description: '自定义插件名称，用空格分隔'
         required: false
@@ -27,12 +41,32 @@ env:
   DIY_P1_SH: sh/op.sh
 
 jobs:
+  # 预处理：把选择项转换成设备数组，供matrix使用
+  prepare_matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      device_list: ${{ steps.setmatrix.outputs.devices }}
+    steps:
+      - name: 生成编译设备列表
+        id: setmatrix
+        run: |
+          TARGET="${{ github.event.inputs.BUILD_TARGET }}"
+          ALL_DEVICES='["rax3000m","rax3000me","rax3000m-emmc","rax3000m-nand","rax3000m-256m-nand","xr30-emmc","xr30-nand"]'
+          if [[ "$TARGET" == "全部" ]];then
+            echo "devices=$ALL_DEVICES" >> $GITHUB_OUTPUT
+          else
+            # 截取 -openwrt 前面的设备名
+            DEV=$(echo $TARGET | sed 's/-openwrt//')
+            echo "devices=[\"$DEV\"]" >> $GITHUB_OUTPUT
+          fi
+
   build_firmware:
     name: 编译固件 - ${{ matrix.device }} - ${{ matrix.source }}
+    needs: prepare_matrix
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        device: ["rax3000m", "rax3000me", "rax3000m-emmc", "rax3000m-nand", "rax3000m-256m-nand", "xr30-emmc", "xr30-nand"]
+        device: ${{ fromJSON(needs.prepare_matrix.outputs.device_list) }}
         source: ["openwrt"]
         include:
           - device: "rax3000m"
@@ -50,7 +84,7 @@ jobs:
           - device: "xr30-emmc"
             config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_xr30-emmc=y"
 
-    steps: 
+    steps:
     - name: 检查分支
       uses: actions/checkout@v6
 
@@ -59,7 +93,6 @@ jobs:
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
         sudo apt-get clean
         df -h
-
     - name: 编译环境
       run: |
         sudo apt-get update
@@ -76,7 +109,6 @@ jobs:
         sudo timedatectl set-timezone 'Asia/Shanghai'
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-
     - name: 设置环境变量
       run: |
         TAG="$(date +'%Y%m%d')"
@@ -88,14 +120,13 @@ jobs:
         echo "SOURCE_NAME=${{ matrix.source }}" >> $GITHUB_ENV
         echo "REPO_URL=https://github.com/shiyu1314/openwrt-source" >> $GITHUB_ENV
         echo "REPO_BRANCH=openwrt-25.12" >> $GITHUB_ENV
-
     - name: 克隆源代码
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL $SOURCE_NAME
         ln -sf /workdir/$SOURCE_NAME $GITHUB_WORKSPACE/$SOURCE_NAME
-        
+
     - name: 切换分支
       run: |
         cd $SOURCE_NAME
@@ -109,8 +140,8 @@ jobs:
             echo "Can't get local/upstream's branch/tags"
             ;;
         esac
-        echo "release_tag=$_release_tag" >> $GITHUB_ENV  
-        
+        echo "release_tag=$_release_tag" >> $GITHUB_ENV
+
     - name: 取回缓存 staging_dir
       uses: actions/cache@v5
       with:
@@ -119,17 +150,17 @@ jobs:
         key: ${{ matrix.source }}-toolchain-cache
         restore-keys: |
           ${{ matrix.source }}-toolchain-cache
-            
+
     - name: patch修补
       run: |
         set -x
         cd $SOURCE_NAME
         find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
         ./scripts/feeds update -a
-        cd .. 
+        cd ..
         [ -e patch ] && cp -rf patch/diy/*.patch $SOURCE_NAME
         [ -e patch ] && cp -rf patch/luci/*.patch $SOURCE_NAME/feeds/luci
-        
+
     - name: 加载自定义脚本
       run: |
         chmod +x $DIY_P1_SH
@@ -138,7 +169,6 @@ jobs:
         cd ..
         [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
         [ -e patch ] && cp -rf patch/nginx/uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
-
     - name: 加载自定义配置
       run: |
         [ -e files ] && mv files $SOURCE_NAME/files
@@ -147,16 +177,16 @@ jobs:
         CONFIG_TARGET_mediatek_filogic=y
         ${{ matrix.config }}
         EOF
-        
+
         [ -e config ] && cat config/config-common >> $SOURCE_NAME/.config
-        
+
         sed -i "s/192.168.1.1/${{ github.event.inputs.OP_IP }}/" $SOURCE_NAME/package/base-files/files/bin/config_generate
-        
+
         IFS=' ' read -r -a plugins <<< "${{ github.event.inputs.CUSTOM_PLUGINS }}"
         for plugin in "${plugins[@]}"; do
           echo "CONFIG_PACKAGE_${plugin}=y" >> $SOURCE_NAME/.config
         done
-    
+
     - name: 下载编译依赖
       id: package
       run: |
@@ -165,14 +195,13 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-    
+
     - name: 编译源码
       id: compile
       run: |
         cd $SOURCE_NAME
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
-
     - name: 查看磁盘使用情况
       if: (!cancelled())
       run: df -hT
@@ -190,7 +219,6 @@ jobs:
         rm -rf *.sha
         rm -rf sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
-
     - name: 上传固件到Releases
       uses: softprops/action-gh-release@v3
       env:
@@ -202,10 +230,10 @@ jobs:
           ====================固件信息=======================
           分支：${{ env.release_tag }}
           静态IP：${{ github.event.inputs.OP_IP }}
+          编译机型选择：${{ github.event.inputs.BUILD_TARGET }}
           插件：${{ github.event.inputs.CUSTOM_PLUGINS }}
           定制作者：${{ github.event.inputs.OP_author }}
           默认密码：无
-
     - name: 清理Releases
       uses: gzk47/delete-older-releases@v0.3.5
       with:
