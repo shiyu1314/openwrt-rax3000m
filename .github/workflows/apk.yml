@@ -179,5 +179,5 @@ jobs:
         git add .
         git commit -m "${{ env.tag }}"
         git branch -M main
-        git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/rax3000m
+        git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/openwrt-rax3000m
         git push -u origin main --force
