@@ -1,0 +1,177 @@
+name: apk
+
+on:
+  schedule:
+    - cron: 0 21 * * 1
+  repository_dispatch:
+  workflow_dispatch:
+
+
+env:
+  DIY_P1_SH: sh/op.sh
+
+jobs:
+  build_firmware:
+    name: 编译固件 - ${{ matrix.device }} - ${{ matrix.source }}
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        device: ["rax3000m-emmc"]
+        source: ["openwrt"]
+        include:
+          - device: "rax3000m-emmc"
+            config: "CONFIG_TARGET_DEVICE_mediatek_filogic_DEVICE_cmcc_rax3000m-emmc=y"
+
+
+    steps: 
+    - name: 检查分支
+      uses: actions/checkout@v6
+
+    - name: 释放磁盘空间
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        df -h
+
+    - name: 编译环境
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libfuse-dev clang flex bison g++ gawk \
+          gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+          python3-setuptools rsync swig unzip zlib1g-dev file wget \
+          libelf-dev qemu-utils ccache
+        sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: 设置环境变量
+      run: |
+        TAG="$(date +'%Y%m%d')"
+        echo "tag=$TAG" >> $GITHUB_ENV
+        echo "DEVICE_NAME=${{ matrix.device }}" >> $GITHUB_ENV
+        echo "SOURCE_NAME=${{ matrix.source }}" >> $GITHUB_ENV
+        echo "REPO_URL=https://github.com/shiyu1314/openwrt-source" >> $GITHUB_ENV
+        echo "REPO_BRANCH=openwrt-25.12" >> $GITHUB_ENV
+
+    - name: 克隆源代码
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL $SOURCE_NAME
+        ln -sf /workdir/$SOURCE_NAME $GITHUB_WORKSPACE/$SOURCE_NAME
+        
+    - name: 切换分支
+      run: |
+        cd $SOURCE_NAME
+        case $REPO_BRANCH in
+          openwrt-25.12)
+            _release_tag=$(git tag --sort=taggerdate --list 'v25.*' | tail -1)
+            git checkout $_release_tag
+            _prerelease=false
+            ;;
+          *)
+            echo "Can't get local/upstream's branch/tags"
+            ;;
+        esac
+        echo "release_tag=$_release_tag" >> $GITHUB_ENV    
+        
+    - name: 取回缓存 staging_dir
+      uses: actions/cache@v5
+      with:
+        path: |
+          ${{ matrix.source }}/staging_dir
+        key: ${{ matrix.source }}-toolchain-cache
+        restore-keys: |
+          ${{ matrix.source }}-toolchain-cache
+            
+    - name: patch修补
+      run: |
+        set -x
+        cd $SOURCE_NAME
+        find ./staging_dir/ -name '*' -exec touch {} \; >/dev/null 2>&1
+        ./scripts/feeds update -a
+        cd .. 
+        [ -e patch ] && cp -rf patch/diy/*.patch $SOURCE_NAME
+        [ -e patch ] && cp -rf patch/luci/*.patch $SOURCE_NAME/feeds/luci
+        [ -e patch ] && cp -rf patch/keys/* $SOURCE_NAME
+        
+    - name: 加载自定义脚本
+      run: |
+        chmod +x $DIY_P1_SH
+        cd $SOURCE_NAME
+        $GITHUB_WORKSPACE/$DIY_P1_SH
+        cd ..
+        [ -e patch ] && cp -rf patch/nginx/luci.locations $SOURCE_NAME/feeds/packages/net/nginx/files-luci-support
+        [ -e patch ] && cp -rf patch/nginx/uci.conf.template $SOURCE_NAME/feeds/packages/net/nginx-util/files
+       
+    - name: 加载自定义配置
+      run: |
+        [ -e files ] && mv files $SOURCE_NAME/files
+        cat <<EOF >>$SOURCE_NAME/.config
+        CONFIG_TARGET_mediatek=y
+        CONFIG_TARGET_mediatek_filogic=y
+        ${{ matrix.config }}
+        EOF
+        
+        [ -e config ] && cat config/config-apk >> $SOURCE_NAME/.config
+          
+    
+    - name: 下载编译依赖
+      id: package
+      run: |
+        cd $SOURCE_NAME
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+    
+    - name: 编译源码
+      id: compile
+      run: |
+        cd $SOURCE_NAME
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+
+    - name: 查看磁盘使用情况
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 整理文件
+      id: organize
+      run: |
+        mkdir -p $SOURCE_NAME/bin/packages/aarch64_cortex-a53/kmod
+        cp -rf $SOURCE_NAME/bin/targets/*/*/*/* $SOURCE_NAME/bin/packages/aarch64_cortex-a53/kmod
+        rm -rf $SOURCE_NAME/bin/packages/*/routing
+        rm -rf $SOURCE_NAME/bin/packages/*/telephony
+        cd $SOURCE_NAME/bin/targets/*/*
+        rm -rf packages
+        rm -rf *.buildinfo
+        rm -rf profiles.json
+        rm -rf *.manifest
+        rm -rf *bl2.bin
+        rm -rf *kernel.bin
+        rm -rf *.sha
+        rm -rf sha256sums
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        
+    - name: 签名
+      run: |
+        cd $SOURCE_NAME
+        bash kmod-sign bin/packages/aarch64_cortex-a53/base
+        bash kmod-sign bin/packages/aarch64_cortex-a53/kmod
+        bash kmod-sign bin/packages/aarch64_cortex-a53/luci
+        bash kmod-sign bin/packages/aarch64_cortex-a53/packages
+
+    - name: 上传apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        cd $SOURCE_NAME/bin/packages
+        git init
+        git config --local user.name "github-actions[bot]"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "${{ env.tag }}"
+        git branch -M main
+        git remote add origin https://github-action:$GITHUB_TOKEN@github.com/shiyu1314/rax3000m
+        git push -u origin main --force
